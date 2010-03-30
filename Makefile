@@ -5,7 +5,7 @@ CFLAGS=-std=c99 -O0 -g -Wall -Wextra
 
 # ==== Dependencies ====
 
-OBJECTS=TCServerMain.o TCServerSocket.o TCTypes.o
+OBJECTS=TCServerMain.o TCServerSocket.o TCListenSocket.c TCTypes.o
 
 %.o: %.c %.h
 	$(CC) $(CFLAGS) -c $< -o $@
