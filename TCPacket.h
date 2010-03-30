@@ -7,6 +7,8 @@
 #ifndef TCPACKET_H
 #define TCPACKET_H
 
+#include <stdint.h>
+
 // All field widths are measured in bytes
 #define SEQ_NUM_FIELD_WIDTH		4
 #define TIMESTAMP_FIELD_WIDTH	4
@@ -15,5 +17,21 @@
 #define ELAPSED_T_FIELD_WIDTH	4
 #define RECV_RATE_FIELD_WIDTH	4
 #define LOSS_RATE_FIELD_WIDTH	4
+
+typedef payload_t uint8_t[MAX_DATA_PAYLOAD_SIZE];
+typedef struct data_packet
+{
+	uint32_t seq_number;
+	uint32_t timestamp;
+	uint32_t rtt;
+	payload_t payload;
+} data_packet;
+typedef struct feedback_packet
+{
+	uint32_t timestamp;
+	uint32_t elapsed_time;
+	uint32_t receive_rate;
+	uint32_t loss_event_rate;
+} feedback_packet;
 
 #endif // TCPACKET_H

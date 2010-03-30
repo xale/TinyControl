@@ -24,7 +24,7 @@ struct queue_elem* pop_front(struct queue* q)
 	return ret;
 }
 
-int push_back(struct queue* q, int payload_size, payload payload)
+int push_back(struct queue* q, int payload_size, payload_t payload)
 {
 	struct queue* last = malloc(sizeof(queue_elem));
 	if (last == NULL)
