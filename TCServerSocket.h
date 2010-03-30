@@ -1,4 +1,4 @@
-// TCServer.h
+// TCServerSocket.h
 // Created by xale on 3/29/10
 //
 // Header file for the server version of the TinyControl protocol socket.
@@ -8,20 +8,20 @@
 #include <stdint.h>
 #include "TCTypes.h"
 
-#ifndef	TCSERVER_H
-#define	TCSERVER_H
+#ifndef	TCSERVERSOCKET_H
+#define	TCSERVERSOCKET_H
 
 typedef struct _TCServerSocket
 {
 	socket_fd _sock;
 	pthread_t _readThread;
-	inet_socket_address _socketAddress;
+	inet_socket_address _remoteAddress;
 } TCServerSocket;
 
 typedef TCServerSocket* TCServerSocketRef;
 
-// Blocks on accepting an incoming connection on the specified socket, returning a new TinyControl server socket when a connection is established. 'socket' must be in listen mode before this call is made.
-TCServerSocketRef TCServerSocketAccept(socket_fd socket);
+// Creates a new TinyControl server socket that will attempt to establish a connection with a TinyControl client socket at the specified remote address
+TCServerSocketRef TCServerSocketCreate(inet_socket_address connectAddress);
 
 // Closes, cleans up and frees a TinyControl server socket
 void TCServerSocketDestroy(TCServerSocketRef socket);
@@ -30,7 +30,7 @@ void TCServerSocketDestroy(TCServerSocketRef socket);
 void TCServerSocketSendBytes(TCServerSocketRef socket, const char* data);
 
 // Accessors for data about a TinyControl server socket
-uint32_t TCServerSocketGetAddress(TCServerSocketRef socket);
-uint16_t TCServerSocketGetPort(TCServerSocketRef socket);
+uint32_t TCServerSocketGetRemoteAddress(TCServerSocketRef socket);
+uint16_t TCServerSocketGetRemotePort(TCServerSocketRef socket);
 
-#endif // TCSERVER_H
+#endif // TCSERVERSOCKET_H
