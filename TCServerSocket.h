@@ -24,13 +24,13 @@ typedef TCServerSocket* TCServerSocketRef;
 TCServerSocketRef TCServerSocketCreate(inet_socket_address connectAddress);
 
 // Closes, cleans up and frees a TinyControl server socket
-void TCServerSocketDestroy(TCServerSocketRef socket);
+void TCServerSocketDestroy(TCServerSocketRef serverSocket);
 
 // Sends the specified data over a TinyControl server socket
-void TCServerSocketSendBytes(TCServerSocketRef socket, const char* data);
+void TCServerSocketSendBytes(TCServerSocketRef serverSocket, const char* data);
 
 // Accessors for data about a TinyControl server socket
-uint32_t TCServerSocketGetRemoteAddress(TCServerSocketRef socket);
-uint16_t TCServerSocketGetRemotePort(TCServerSocketRef socket);
+uint32_t TCServerSocketGetRemoteAddress(TCServerSocketRef serverSocket);
+uint16_t TCServerSocketGetRemotePort(TCServerSocketRef serverSocket);
 
 #endif // TCSERVERSOCKET_H

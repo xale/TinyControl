@@ -22,7 +22,7 @@ typedef TCListenSocket* TCListenSocketRef;
 TCListenSocketRef TCListenSocketCreate(uint16_t listenPort);
 
 // Closes, cleans up and frees a TinyControl listen socket
-void TCListenSocketDestory(TCListenSocketRef socket);
+void TCListenSocketDestory(TCListenSocketRef listenSocket);
 
 // Blocks on accepting an incoming connection on the specified TinyControl listen socket, returning a new TinyControl server socket when a connection is established.
 TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket);
