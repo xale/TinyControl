@@ -1,8 +1,11 @@
-// Packet.h
+// TCPacket.h
 // Created by xale on 3/20/10
 //
 // Header file with constants and definitions related to packets as specified by the TinyControl protocol.
 //
+
+#ifndef TCPACKET_H
+#define TCPACKET_H
 
 // All field widths are measured in bytes
 #define SEQ_NUM_FIELD_WIDTH		4
@@ -12,3 +15,5 @@
 #define ELAPSED_T_FIELD_WIDTH	4
 #define RECV_RATE_FIELD_WIDTH	4
 #define LOSS_RATE_FIELD_WIDTH	4
+
+#endif // TCPACKET_H
