@@ -1,4 +1,4 @@
-// Packet.h
+// TCPacket.h
 // Created by xale on 3/20/10
 //
 // Header file with constants and definitions related to packets as specified by the TinyControl protocol.
