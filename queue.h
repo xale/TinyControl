@@ -20,5 +20,6 @@ typedef struct queue
 queue* init_queue(void);
 queue_elem* pop_front(queue*);
 int push_back(queue*, unsigned int, payload_t);
+void free_queue(struct queue*);
 
 #endif // QUEUE_H
