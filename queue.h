@@ -14,6 +14,7 @@ struct queue
 {
 	struct queue_elem* head;
 	struct queue_elem* tail;
+	unsigned int count;
 };
 
 struct queue* init_queue(void);

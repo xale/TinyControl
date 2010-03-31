@@ -18,7 +18,7 @@
 #define RECV_RATE_FIELD_WIDTH	4
 #define LOSS_RATE_FIELD_WIDTH	4
 
-typedef payload_t uint8_t[MAX_DATA_PAYLOAD_SIZE];
+typedef uint8_t payload_t[MAX_DATA_PAYLOAD_SIZE];
 typedef struct data_packet
 {
 	uint32_t seq_number;
