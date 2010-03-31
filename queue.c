@@ -9,6 +9,10 @@
 queue* init_queue(void)
 {
 	queue* ret = malloc(sizeof(queue));
+	if (ret == NULL)
+	{
+		return NULL;
+	}
 	ret->head = NULL;
 	ret->tail = NULL;
 	ret->count = 0;
