@@ -4,18 +4,21 @@
 // Header file for the server version of the TinyControl protocol socket.
 //
 
-#include <pthread.h>
-#include <stdint.h>
-#include "TCTypes.h"
-
 #ifndef	TCSERVERSOCKET_H
 #define	TCSERVERSOCKET_H
 
+#include <pthread.h>
+#include <stdint.h>
+#include "queue.h"
+#include "TCTypes.h"
+
 typedef struct _TCServerSocket
 {
-	socket_fd _sock;
-	pthread_t _readThread;
-	inet_socket_address _remoteAddress;
+	socket_fd sock;
+	pthread_t readThread;
+	pthread_t writeThread;
+	queue* writeQueue;
+	inet_socket_address remoteAddress;
 } TCServerSocket;
 
 typedef TCServerSocket* TCServerSocketRef;

@@ -13,29 +13,47 @@
 // Private "methods"
 // Attempts to perform the second and third stages of a connection handshake; returns a socket file descriptor connected to the client if successful, or -1 in the event of an error.
 socket_fd TCServerSocketConnect(inet_socket_address connectAddress);
-// Manages the congestion monitoring/flow control of the specified socket; run as a separate thread.
-void* TCServerSocketFlowControl(void* serverSocket);
+
+// Manages the congestion feedback/flow control of the specified socket; run as a separate thread.
+void* TCServerSocketReadThread(void* serverSocket);
+
+// Manages the sending of queued outgoing data on the specified socket; run as a separate thread.
+void* TCServerSocketWriteThread(void* serverSocket);
 
 TCServerSocketRef TCServerSocketCreate(inet_socket_address connectAddress)
 {
 	// Attempt to finalize the connection with the client
-	socket_fd sock = TCServerSocketConnect(connectAddress);
+	socket_fd connectedSocket = TCServerSocketConnect(connectAddress);
 	
 	// If the connection fails, bail
-	if (sock < 0)
+	if (connectedSocket < 0)
 		return NULL;
 	
 	// Create the server socket object
 	TCServerSocketRef serverSocket = malloc(sizeof(TCServerSocket));
 	if (serverSocket == NULL)
 		return NULL;
-	serverSocket->_sock = sock;
-	serverSocket->_remoteAddress = connectAddress;
+	memset(serverSocket, 0, sizeof(TCServerSocket));
+	serverSocket->sock = connectedSocket;
+	serverSocket->remoteAddress = connectAddress;
 	
-	// Create a thread to handle reading congestion feedback information from the client
-	int rc = pthread_create(&(serverSocket->_readThread), NULL, TCServerSocketFlowControl, (void*)serverSocket);
-	if (rc != 0)
+	// Create a queue for pending writes to the socket
+	serverSocket->writeQueue = init_queue();
+	if (serverSocket->writeQueue == NULL)
+	{
+		TCServerSocketDestroy(serverSocket);
 		return NULL;
+	}
+	
+	// Create threads to handle writing data to and reading congestion feedback information from the client
+	int readRC, writeRC;
+	readRC = pthread_create(&(serverSocket->readThread), NULL, TCServerSocketReadThread, (void*)serverSocket);
+	writeRC = pthread_create(&(serverSocket->writeThread), NULL, TCServerSocketWriteThread, (void*)serverSocket);
+	if ((readRC != 0) || (writeRC != 0))
+	{
+		TCServerSocketDestroy(serverSocket);
+		return NULL;
+	}
 	
 	// If everything looks good so far, return the new socket, ready for writing
 	return serverSocket;
@@ -44,23 +62,23 @@ TCServerSocketRef TCServerSocketCreate(inet_socket_address connectAddress)
 socket_fd TCServerSocketConnect(inet_socket_address connectAddress)
 {
 	// Attempt to create a UDP socket
-	socket_fd sock = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sock < 0)
+	socket_fd newSocket = socket(AF_INET, SOCK_DGRAM, 0);
+	if (newSocket < 0)
 		return -1;
 	
 	// Send a reply to the client host's connection request (automatically binds local socket)
-	sendto(sock, TC_HANDSHAKE_SYNACK_MSG, sizeof(TC_HANDSHAKE_SYNACK_MSG), 0, (struct sockaddr*)&connectAddress, sizeof(connectAddress));
+	sendto(newSocket, TC_HANDSHAKE_SYNACK_MSG, sizeof(TC_HANDSHAKE_SYNACK_MSG), 0, (struct sockaddr*)&connectAddress, sizeof(connectAddress));
 	
 	// Create read a file-descriptor-set for select()ing on the socket
 	fd_set readFDs;
 	FD_ZERO(&readFDs);
 	
 	// Add the socket to the set
-	FD_SET(sock, &readFDs);
+	FD_SET(newSocket, &readFDs);
 	
 	// Select on the socket, waiting for the client to ACK the connection
 	struct timeval timeout = TC_HANDSHAKE_TIMEOUT;
-	switch (select((int)sock + 1, &readFDs, NULL, NULL, &timeout))
+	switch (select((int)newSocket + 1, &readFDs, NULL, NULL, &timeout))
 	{
 		case -1:
 		case 0:
@@ -68,11 +86,11 @@ socket_fd TCServerSocketConnect(inet_socket_address connectAddress)
 			return -1;
 		
 		default:
-			if (FD_ISSET(sock, &readFDs) != 0)
+			if (FD_ISSET(newSocket, &readFDs) != 0)
 			{
 				// Read the client's message
 				char readBuffer[TC_HANDSHAKE_BUFFER_SIZE + 1];
-				size_t bytesRead = recv(sock, readBuffer, TC_HANDSHAKE_BUFFER_SIZE, 0);
+				size_t bytesRead = recv(newSocket, readBuffer, TC_HANDSHAKE_BUFFER_SIZE, 0);
 				readBuffer[bytesRead] = 0;
 				
 				// Check that the message is an ACK
@@ -92,12 +110,19 @@ socket_fd TCServerSocketConnect(inet_socket_address connectAddress)
 	}
 	
 	// Return the connected socket
-	return sock;
+	return newSocket;
 }
 
 void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 {
+	// Shut down the read and write threads
 	// FIXME: WRITEME
+	
+	// Free the write queue
+	// FIXME: free_queue(serverSocket->writeQueue);
+	
+	// Free the socket struct itself
+	free(serverSocket);
 }
 
 void TCServerSocketSendBytes(TCServerSocketRef serverSocket, const char* data)
@@ -105,7 +130,14 @@ void TCServerSocketSendBytes(TCServerSocketRef serverSocket, const char* data)
 	// FIXME: WRITEME
 }
 
-void* TCServerSocketFlowControl(void* serverSocket)
+void* TCServerSocketReadThread(void* serverSocket)
+{
+	// FIXME: WRITEME
+	
+	pthread_exit(NULL);
+}
+
+void* TCServerSocketWriteThread(void* serverSocket)
 {
 	// FIXME: WRITEME
 	
@@ -114,10 +146,10 @@ void* TCServerSocketFlowControl(void* serverSocket)
 
 uint32_t TCServerSocketGetRemoteAddress(TCServerSocketRef serverSocket)
 {
-	return serverSocket->_remoteAddress.sin_addr.s_addr;
+	return serverSocket->remoteAddress.sin_addr.s_addr;
 }
 
 uint16_t TCServerSocketGetRemotePort(TCServerSocketRef serverSocket)
 {
-	return serverSocket->_remoteAddress.sin_port;
+	return serverSocket->remoteAddress.sin_port;
 }
