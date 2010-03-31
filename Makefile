@@ -1,9 +1,9 @@
 CC=gcc
 CFLAGS=-std=c99 -pedantic -Wall -Wextra -O
-SOURCES=TCServerMain.c TCServerSocket.c TCTypes.c queue.c
+SOURCES=TCServerMain.c TCServerSocket.c TCListenSocket.c TCTypes.c queue.c
 EXECUTABLES=server
 DEPENDS=$(SOURCES:.c=.d)
-SERVER_OBJECTS=TCServerMain.o TCServerSocket.o TCTypes.o queue.o
+SERVER_OBJECTS=TCServerMain.o TCServerSocket.o TCListenSocket.c TCTypes.o queue.o
 
 .PHONY:all
 all: $(DEPENDS) $(EXECUTABLES)
