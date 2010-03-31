@@ -4,12 +4,12 @@
 // Header file with typedefs and defines for TinyControl protocol.
 //
 
+#ifndef TCTYPES_H
+#define TCTYPES_H
+
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/time.h>
-
-#ifndef TCTYPES_H
-#define TCTYPES_H
 
 typedef struct addrinfo				inet_address_info;
 typedef struct sockaddr_in			inet_socket_address;

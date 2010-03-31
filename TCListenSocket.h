@@ -4,13 +4,13 @@
 // Header file for a UDP listener socket that creates and establishes connections over TinyControl server sockets.
 //
 
+#ifndef TCLISTENSOCKET_H
+#define TCLISTENSOCKET_H
+
 #include <stdint.h>
 #include <sys/time.h>
 #include "TCServerSocket.h"
 #include "TCTypes.h"
-
-#ifndef TCLISTENSOCKET_H
-#define TCLISTENSOCKET_H
 
 typedef struct _TCListenSocket
 {
