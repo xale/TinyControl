@@ -39,3 +39,15 @@ int push_back(struct queue* q, unsigned int payload_size, payload_t payload)
 	q->count++;
 	return 0;
 }
+
+void free_queue(struct queue* q)
+{
+	for(struct queue_elem* elem = q->head, next; elem != NULL;)
+	{
+		next = elem.next;
+		free(elem);
+		elem = next;
+	}
+
+	free(q);
+}

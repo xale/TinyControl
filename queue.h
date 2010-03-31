@@ -20,5 +20,6 @@ struct queue
 struct queue* init_queue(void);
 struct queue_elem* pop_front(struct queue*);
 int push_back(struct queue*, unsigned int, payload_t);
+void free_queue(struct queue*);
 
 #endif // QUEUE_H
