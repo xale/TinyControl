@@ -3,17 +3,18 @@
 
 #include "TCPacket.h"
 
-typedef struct _queue_elem
+typedef struct queue_elem
 {
 	struct queue_elem* next;
 	unsigned int payload_size;
 	payload_t payload;
 } queue_elem;
 
-typedef struct _queue
+typedef struct queue
 {
 	struct queue_elem* head;
 	struct queue_elem* tail;
+	unsigned int count;
 } queue;
 
 queue* init_queue(void);

@@ -1,29 +1,25 @@
-# ==== Compiler and command-line options and flags ====
 CC=gcc
+CFLAGS=-std=c99 -pedantic -Wall -Wextra -O
+SOURCES=TCServerMain.c TCServerSocket.c TCTypes.c queue.c
+EXECUTABLES=server
+DEPENDS=$(SOURCES:.c=.d)
+SERVER_OBJECTS=TCServerMain.o TCServerSocket.o TCTypes.o queue.o
 
-CFLAGS=-std=c99 -O0 -g -Wall -Wextra
+.PHONY:all
+all: $(DEPENDS) $(EXECUTABLES)
 
-# ==== Dependencies ====
+server: $(SERVER_OBJECTS)
+	$(CC) $(CFLAGS) $^ -o $@
 
-OBJECTS=TCServerMain.o TCServerSocket.o TCListenSocket.c TCTypes.o
+-include $(DEPENDS)
 
-%.o: %.c %.h
-	$(CC) $(CFLAGS) -c $< -o $@
+.PHONY:debug
+debug: CFLAGS:=$(CFLAGS) -g -O0
+debug: all
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-# ==== Build rules ====
-ALL=main
-all: $(ALL)
-
-main: $(OBJECTS)
-	$(CC) $(CFLAGS) $^ -o server
-
-# ==== Clean rules ====
+.PHONY:clean
 clean:
-	rm -rf *.gch *.dSYM *.o
-	
-clean-all:
-	make clean
-	rm -f server
+	$(RM) *.o *.d $(EXECUTABLES)
+
+%.d: %.c
+	$(SHELL) -ec "$(CC) -M $(CPPFLAGS) $< | sed 's/^$*.o/& $@/g' > $@"
