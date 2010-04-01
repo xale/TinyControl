@@ -1,15 +1,18 @@
 CC=gcc
+LDFLAGS=-lpthread
 CFLAGS=-std=c99 -pedantic -Wall -Wextra -O
 SOURCES=TCServerMain.c TCServerSocket.c TCListenSocket.c TCTypes.c queue.c
-EXECUTABLES=server
 DEPENDS=$(SOURCES:.c=.d)
-SERVER_OBJECTS=TCServerMain.o TCServerSocket.o TCListenSocket.c TCTypes.o queue.o
+
+EXECUTABLES=server
+server_OBJECTS=TCServerMain.o TCServerSocket.o TCListenSocket.c TCTypes.o queue.o
 
 .PHONY:all
 all: $(DEPENDS) $(EXECUTABLES)
 
-server: $(SERVER_OBJECTS)
-	$(CC) $(CFLAGS) $^ -o $@
+.SECONDEXPANSION:
+$(EXECUTABLES): $$($$@_OBJECTS)
+	$(CC) $(LDFLAGS) $(CFLAGS) $^ -o $@
 
 -include $(DEPENDS)
 
@@ -22,4 +25,4 @@ clean:
 	$(RM) *.o *.d $(EXECUTABLES)
 
 %.d: %.c
-	$(SHELL) -ec "$(CC) -M $(CPPFLAGS) $< | sed 's/^$*.o/& $@/g' > $@"
+	$(SHELL) -ec "$(CC) -M $(CFLAGS) $< | sed 's/^$*.o/& $@/g' > $@"
