@@ -12,9 +12,9 @@
 #include "TCServerSocket.h"
 #include "TCTypes.h"
 
-typedef struct _TCListenSocket
+typedef struct TCListenSocket
 {
-	socket_fd _sock;
+	socket_fd sock;
 } TCListenSocket;
 
 typedef TCListenSocket* TCListenSocketRef;

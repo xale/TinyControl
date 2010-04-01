@@ -45,6 +45,13 @@ TCServerSocketRef TCServerSocketCreate(inet_socket_address connectAddress)
 		return NULL;
 	}
 	
+	// Create a mutex for the server socket object
+	if (pthread_mutex_init(&(serverSocket->mutex), NULL) != 0)
+	{
+		TCServerSocketDestroy(serverSocket);
+		return NULL;
+	}
+	
 	// Create threads to handle writing data to and reading congestion feedback information from the client
 	int readRC, writeRC;
 	readRC = pthread_create(&(serverSocket->readThread), NULL, TCServerSocketReadThread, (void*)serverSocket);
@@ -54,7 +61,7 @@ TCServerSocketRef TCServerSocketCreate(inet_socket_address connectAddress)
 		TCServerSocketDestroy(serverSocket);
 		return NULL;
 	}
-	
+
 	// If everything looks good so far, return the new socket, ready for writing
 	return serverSocket;
 }
@@ -115,11 +122,20 @@ socket_fd TCServerSocketConnect(inet_socket_address connectAddress)
 
 void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 {
+	// Acquire mutex
+	pthread_mutex_lock(&(serverSocket->mutex));
+	
 	// Shut down the read and write threads
 	// FIXME: WRITEME
 	
+	// Release mutex
+	pthread_mutex_unlock(&(serverSocket->mutex));
+	
+	// Free the mutex
+	pthread_mutex_destroy(&(serverSocket->mutex));
+	
 	// Free the write queue
-	// FIXME: free_queue(serverSocket->writeQueue);
+	free_queue(serverSocket->writeQueue);
 	
 	// Free the socket struct itself
 	free(serverSocket);

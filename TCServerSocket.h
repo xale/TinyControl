@@ -12,13 +12,14 @@
 #include "queue.h"
 #include "TCTypes.h"
 
-typedef struct _TCServerSocket
+typedef struct TCServerSocket
 {
 	socket_fd sock;
+	inet_socket_address remoteAddress;
+	pthread_mutex_t mutex;
 	pthread_t readThread;
 	pthread_t writeThread;
 	queue* writeQueue;
-	inet_socket_address remoteAddress;
 } TCServerSocket;
 
 typedef TCServerSocket* TCServerSocketRef;
