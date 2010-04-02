@@ -1,6 +1,9 @@
+#define _POSIX_SOURCE
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <netdb.h>
+#include <string.h>
 
 #include "TCTypes.h"
 
@@ -24,11 +27,13 @@ int lookup(char* address, char* port)
 		// failed to open socket
 		return -1;
 	}
-	sendto(sock, TC_HANDSHAKE_SYN_MSG, strlen(TC_HANDSHAKE_SYN_MSG), 0, result->ai_addr, (sizeof sockaddr_storage));
+	sendto(sock, TC_HANDSHAKE_SYN_MSG, strlen(TC_HANDSHAKE_SYN_MSG), 0,
+			result->ai_addr, sizeof (struct sockaddr_storage));
 	// TODO: anticipate failure
 	struct sockaddr_storage server;
-	int fromlen;
+	unsigned int fromlen;
 	char buf[TC_HANDSHAKE_BUFFER_SIZE+1];
-	recvfrom(sock, &buf, TC_HANDSHAKE_BUFFER_SIZE, 0, server, &fromlen);
+	recvfrom(sock, &buf, TC_HANDSHAKE_BUFFER_SIZE, 0,
+			(struct sockaddr*) &server, &fromlen);
 	// TODO: anticipate failure
 }
