@@ -8,16 +8,16 @@ EXECUTABLES=server
 server_OBJECTS=TCServerMain.o TCServerSocket.o TCListenSocket.c TCTypes.o queue.o
 
 .PHONY:all
-all: $(DEPENDS) $(EXECUTABLES)
+all: $(EXECUTABLES)
+
+-include $(DEPENDS)
 
 .SECONDEXPANSION:
 $(EXECUTABLES): $$($$@_OBJECTS)
 	$(CC) $(LDFLAGS) $(CFLAGS) $^ -o $@
 
--include $(DEPENDS)
-
 .PHONY:debug
-debug: CFLAGS:=$(CFLAGS) -g -O0
+debug: CFLAGS+=-g -O0
 debug: all
 
 .PHONY:clean

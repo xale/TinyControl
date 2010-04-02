@@ -36,4 +36,9 @@ int lookup(char* address, char* port)
 	recvfrom(sock, &buf, TC_HANDSHAKE_BUFFER_SIZE, 0,
 			(struct sockaddr*) &server, &fromlen);
 	// TODO: anticipate failure
+
+	connect(sock, (struct sockaddr*) &server, fromlen);
+	// TODO: anticipate failure
+
+	send(sock, TC_HANDSHAKE_SYNACK_MESSAGE, strlen(TC_HANDSHAKE_SYNACK_MESSAGE), 0);
 }
