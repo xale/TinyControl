@@ -20,7 +20,7 @@ typedef struct TCListenSocket
 typedef TCListenSocket* TCListenSocketRef;
 
 // Creates a new TinyControl listen socket, listening on the specified port
-TCListenSocketRef TCListenSocketCreate(uint16_t listenPort);
+TCListenSocketRef TCListenSocketCreate(const char* listenPort);
 
 // Closes, cleans up and frees a TinyControl listen socket
 void TCListenSocketDestory(TCListenSocketRef listenSocket);
