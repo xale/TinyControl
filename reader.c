@@ -10,7 +10,7 @@ int lookup(char* address, char* port)
 {
 	struct addrinfo hints;
 	memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_family = AF_UNSPEC;
+	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_DGRAM;
 	struct addrinfo* result;
 	int status = getaddrinfo(address, port, &hints, &result);
@@ -39,5 +39,5 @@ int lookup(char* address, char* port)
 	connect(sock, (struct sockaddr*) &server, fromlen);
 	// TODO: anticipate failure
 
-	send(sock, TC_HANDSHAKE_SYNACK_MESSAGE, strlen(TC_HANDSHAKE_SYNACK_MESSAGE), 0);
+	send(sock, TC_HANDSHAKE_SYNACK_MSG, strlen(TC_HANDSHAKE_SYNACK_MSG), 0);
 }
