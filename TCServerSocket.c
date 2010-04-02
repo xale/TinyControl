@@ -50,7 +50,7 @@ TCServerSocketRef TCServerSocketCreate(const inet_socket_address* connectAddress
 	}
 	
 	// Create a mutex for the server socket object
-	if (pthread_mutex_init(&(serverSocket->mutex), NULL) != 0)
+	if (pthread_mutex_init(serverSocket->mutex, NULL) != 0)
 	{
 		TCServerSocketDestroy(serverSocket);
 		return NULL;
@@ -131,16 +131,16 @@ socket_fd TCServerSocketConnect(const inet_socket_address* connectAddress)
 void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 {
 	// Acquire mutex
-	pthread_mutex_lock(&(serverSocket->mutex));
+	pthread_mutex_lock(serverSocket->mutex);
 	
 	// Shut down the read and write threads
 	// FIXME: WRITEME
 	
 	// Release mutex
-	pthread_mutex_unlock(&(serverSocket->mutex));
+	pthread_mutex_unlock(serverSocket->mutex);
 	
 	// Free the mutex
-	pthread_mutex_destroy(&(serverSocket->mutex));
+	pthread_mutex_destroy(serverSocket->mutex);
 	
 	// Free the write queue
 	free_queue(serverSocket->writeQueue);
@@ -166,9 +166,9 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, const char* data, size_t
 		memcpy(&nextPayload, data + (dataLength - dataLeft), payloadSize);
 		
 		// Add the packet to the queue
-		pthread_mutex_lock(&(serverSocket->mutex));
+		pthread_mutex_lock(serverSocket->mutex);
 		push_back(serverSocket->writeQueue, payloadSize, nextPayload);
-		pthread_mutex_unlock(&(serverSocket->mutex));
+		pthread_mutex_unlock(serverSocket->mutex);
 		
 		// Subtract the amount of data added to the queue from the amount remaining
 		dataLeft -= payloadSize;
