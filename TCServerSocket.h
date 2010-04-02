@@ -15,7 +15,7 @@
 typedef struct TCServerSocket
 {
 	socket_fd sock;
-	inet_socket_address remoteAddress;
+	inet_socket_address* remoteAddress;
 	pthread_mutex_t mutex;
 	pthread_t readThread;
 	pthread_t writeThread;
@@ -25,7 +25,7 @@ typedef struct TCServerSocket
 typedef TCServerSocket* TCServerSocketRef;
 
 // Creates a new TinyControl server socket that will attempt to establish a connection with a TinyControl client socket at the specified remote address
-TCServerSocketRef TCServerSocketCreate(inet_socket_address connectAddress);
+TCServerSocketRef TCServerSocketCreate(const inet_socket_address* connectAddress);
 
 // Closes, cleans up and frees a TinyControl server socket
 void TCServerSocketDestroy(TCServerSocketRef serverSocket);
