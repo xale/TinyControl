@@ -80,7 +80,7 @@ socket_fd TCServerSocketConnect(const inet_socket_address* connectAddress)
 	// Send a reply to the client host's connection request (automatically binds local socket)
 	sendto(newSocket, TC_HANDSHAKE_SYNACK_MSG, sizeof(TC_HANDSHAKE_SYNACK_MSG), 0, (struct sockaddr*)connectAddress, sizeof(*connectAddress));
 	
-	// Create read a file-descriptor-set for select()ing on the socket
+	// Create a read-file-descriptor-set for select()ing on the socket
 	fd_set readFDs;
 	FD_ZERO(&readFDs);
 	
@@ -130,11 +130,19 @@ socket_fd TCServerSocketConnect(const inet_socket_address* connectAddress)
 
 void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 {
+	if (serverSocket == NULL)
+		return;
+	
 	// Acquire mutex
 	pthread_mutex_lock(serverSocket->mutex);
 	
 	// Shut down the read and write threads
-	// FIXME: WRITEME
+	serverSocket->isReading = false;
+	serverSocket->isWriting = false;
+	
+	// Wait for the threads to stop
+	pthread_join(serverSocket->readThread, NULL);
+	pthread_join(serverSocket->writeThread, NULL);
 	
 	// Release mutex
 	pthread_mutex_unlock(serverSocket->mutex);
@@ -154,6 +162,16 @@ void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 
 void TCServerSocketSend(TCServerSocketRef serverSocket, const char* data, size_t dataLength)
 {
+	pthread_mutex_lock(serverSocket->mutex);
+	
+	// Check that the socket is not already writing data
+	if (serverSocket->isWriting)
+	{
+		pthread_mutex_unlock(serverSocket->mutex);
+		printf("WARNING: attempt to write to server socket with queued data");
+		return;
+	}
+	
 	// Fill the queue with packet payloads
 	payload_t nextPayload;
 	size_t payloadSize, dataLeft = dataLength;
@@ -166,13 +184,16 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, const char* data, size_t
 		memcpy(&nextPayload, data + (dataLength - dataLeft), payloadSize);
 		
 		// Add the packet to the queue
-		pthread_mutex_lock(serverSocket->mutex);
 		push_back(serverSocket->writeQueue, payloadSize, nextPayload);
-		pthread_mutex_unlock(serverSocket->mutex);
 		
 		// Subtract the amount of data added to the queue from the amount remaining
 		dataLeft -= payloadSize;
 	}
+	
+	// Start the server writing
+	serverSocket->isWriting = true;
+	
+	pthread_mutex_unlock(serverSocket->mutex);
 }
 
 void* TCServerSocketReadThread(void* serverSocket)

@@ -9,6 +9,7 @@
 
 #include <pthread.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "queue.h"
 #include "TCTypes.h"
 
@@ -16,9 +17,13 @@ typedef struct TCServerSocket
 {
 	socket_fd sock;
 	inet_socket_address* remoteAddress;
+	
 	pthread_mutex_t* mutex;
 	pthread_t readThread;
+	bool isReading;
 	pthread_t writeThread;
+	bool isWriting;
+	
 	queue* writeQueue;
 } TCServerSocket;
 
