@@ -58,7 +58,7 @@ TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const str
 {
 	TCServerSocketRef serverSocket = NULL;
 
-	// Create read a file-descriptor-set for select()ing on the socket
+	// Create a read-file-descriptor-set for select()ing on the socket
 	fd_set readFDs;
 	FD_ZERO(&readFDs);
 	
