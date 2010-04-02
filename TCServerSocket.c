@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "TCServerSocket.h"
+#include "TCPacket.h"
 
 // Private "methods"
 // Attempts to perform the second and third stages of a connection handshake; returns a socket file descriptor connected to the client if successful, or -1 in the event of an error.
@@ -151,9 +152,27 @@ void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 	free(serverSocket);
 }
 
-void TCServerSocketSendBytes(TCServerSocketRef serverSocket, const char* data)
+void TCServerSocketSend(TCServerSocketRef serverSocket, const char* data, size_t dataLength)
 {
-	// FIXME: WRITEME
+	// Fill the queue with packet payloads
+	payload_t nextPayload;
+	size_t payloadSize, dataLeft = dataLength;
+	while (dataLeft > 0)
+	{
+		// Calculate the size of this packet payload
+		payloadSize = (MAX_PAYLOAD_SIZE > dataLeft) ? dataLeft : MAX_PAYLOAD_SIZE;
+		
+		// Load the packet
+		memcpy(&nextPayload, data + (dataLength - dataLeft), payloadSize);
+		
+		// Add the packet to the queue
+		pthread_mutex_lock(&(serverSocket->mutex));
+		push_back(serverSocket->writeQueue, payloadSize, nextPayload);
+		pthread_mutex_unlock(&(serverSocket->mutex));
+		
+		// Subtract the amount of data added to the queue from the amount remaining
+		dataLeft -= payloadSize;
+	}
 }
 
 void* TCServerSocketReadThread(void* serverSocket)

@@ -31,7 +31,7 @@ TCServerSocketRef TCServerSocketCreate(const inet_socket_address* connectAddress
 void TCServerSocketDestroy(TCServerSocketRef serverSocket);
 
 // Sends the specified data over a TinyControl server socket
-void TCServerSocketSendBytes(TCServerSocketRef serverSocket, const char* data);
+void TCServerSocketSend(TCServerSocketRef serverSocket, const char* data, size_t dataLength);
 
 // Accessors for data about a TinyControl server socket
 uint32_t TCServerSocketGetRemoteAddress(TCServerSocketRef serverSocket);
