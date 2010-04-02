@@ -12,6 +12,7 @@
 #include <sys/time.h>
 
 typedef struct addrinfo				inet_address_info;
+typedef struct addrinfo*			inet_address_info_list;
 typedef struct sockaddr_in			inet_socket_address;
 typedef int 						socket_fd;
 
