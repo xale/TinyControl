@@ -1,6 +1,6 @@
 CC=gcc
 LDFLAGS=-lpthread
-CFLAGS=-std=c99 -pedantic -Wall -Wextra -O
+CFLAGS=-std=gnu99 -pedantic -Wall -Wextra -O
 SOURCES=TCServerMain.c TCServerSocket.c TCListenSocket.c TCTypes.c queue.c
 DEPENDS=$(SOURCES:.c=.d)
 
