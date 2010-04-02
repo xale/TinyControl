@@ -26,6 +26,6 @@ TCListenSocketRef TCListenSocketCreate(const char* listenPort);
 void TCListenSocketDestory(TCListenSocketRef listenSocket);
 
 // Blocks on accepting an incoming connection on the specified TinyControl listen socket, returning a new TinyControl server socket when a connection is established, or NULL after the specified timeout
-TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const struct timeval timeout);
+TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const struct timeval acceptTimeout);
 
 #endif // TCLISTENSOCKET_H

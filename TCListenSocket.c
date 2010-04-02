@@ -5,6 +5,7 @@
 //
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netdb.h>
@@ -53,8 +54,65 @@ void TCListenSocketDestory(TCListenSocketRef listenSocket)
 	free(listenSocket);
 }
 
-TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const struct timeval timeout)
+TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const struct timeval acceptTimeout)
 {
-	// FIXME: WRITEME
-	return NULL;
+	TCServerSocketRef serverSocket = NULL;
+
+	// Create read a file-descriptor-set for select()ing on the socket
+	fd_set readFDs;
+	FD_ZERO(&readFDs);
+	
+	// Add the listen socket to the set
+	FD_SET(listenSocket->sock, &readFDs);
+	
+	// Select on the socket, waiting for a client to send us a SYN request
+	struct timeval timeout = acceptTimeout;
+	switch (select(listenSocket->sock + 1, &readFDs, NULL, NULL, &timeout))
+	{
+		case -1:
+		case 0:
+			// Socket error, or connection timed out; connection failed
+			break;
+		
+		default:
+			if (FD_ISSET(listenSocket->sock, &readFDs) != 0)
+			{
+				// Attempt to read the incoming message, and determine its origin
+				char readBuffer[TC_HANDSHAKE_BUFFER_SIZE + 1];
+				generic_socket_address clientAddress;
+				socket_address_length addressLength;
+				size_t bytesRead = recvfrom(listenSocket->sock, readBuffer, TC_HANDSHAKE_BUFFER_SIZE, 0, &clientAddress, &addressLength);
+				if (bytesRead <= 0)
+					break;
+				
+				// Check that the incoming connection is IPv4
+				if (clientAddress.sa_family != AF_INET)
+				{
+					printf("WARNING: listen socket received non-IPv4 connection attempt");
+					break;
+				}
+				
+				// NULL-terminate the string
+				readBuffer[bytesRead] = 0;
+				
+				// Check that the message is a connection request
+				if (strncmp(readBuffer, TC_HANDSHAKE_SYN_MSG, TC_HANDSHAKE_BUFFER_SIZE) != 0)
+				{
+					// Should never happen...
+					printf("WARNING: listen socket received non-SYN message from incoming client");
+					break;
+				}
+				
+				// If the message is a connection request, attempt to complete the connection
+				serverSocket = TCServerSocketCreate((inet_socket_address*)&clientAddress);
+			}
+			else
+			{
+				// Should never happen...
+				printf("WARNING: listen socket file descriptor not ready for reading after successful select() operation");
+			}
+			break;
+	}
+	
+	return serverSocket;
 }
