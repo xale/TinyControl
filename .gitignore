@@ -3,3 +3,7 @@ server
 .*.swp
 *.d
 *.o
+
+# Xcode noise
+TinyControl.xcodeproj
+build
