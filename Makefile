@@ -25,4 +25,4 @@ clean:
 	$(RM) *.o *.d $(EXECUTABLES)
 
 %.d: %.c
-	$(SHELL) -ec "$(CC) -M $(CFLAGS) $< | sed 's/^$*.o/& $@/g' > $@"
+	$(SHELL) -ec "$(CC) -M $< | sed 's/^$*.o/& $@/g' > $@"
