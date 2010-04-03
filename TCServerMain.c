@@ -20,7 +20,7 @@ int main(int argc, char** argv)
 	}
 	
 	// Create a listen socket
-	printf("DEBUG: creating listenSocket on port %s\n", argv[1]);
+	printf("DEBUG: creating listen socket on port %s\n", argv[1]);
 	TCListenSocketRef listenSocket = TCListenSocketCreate(argv[1]);
 	
 	// Listen for incoming connections

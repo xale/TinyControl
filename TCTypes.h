@@ -13,8 +13,9 @@
 
 typedef struct addrinfo				inet_address_info;
 typedef struct addrinfo*			inet_address_info_list;
-typedef struct sockaddr				generic_socket_address;
+typedef struct sockaddr				socket_address;
 typedef struct sockaddr_in			inet_socket_address;
+typedef struct sockaddr_in6			inet6_socket_address;
 typedef socklen_t					socket_address_length;
 typedef int 						socket_fd;
 
