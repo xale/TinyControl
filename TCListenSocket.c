@@ -32,6 +32,9 @@ TCListenSocketRef TCListenSocketCreate(const char* listenPort)
 	}
 	
 	// Bind the socket to the specified port
+	char* addr = TCPrintAddress(addressInfo.ai_addr);
+	printf("DEBUG: binding listen socket to %s\n", addr);
+	free(addr);
 	if (bind(newSocket, addressInfo.ai_addr, addressInfo.ai_addrlen) != 0)
 	{
 		perror("ERROR: bind failed in TCListenSocketCreate()");
