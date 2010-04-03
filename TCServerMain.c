@@ -22,6 +22,11 @@ int main(int argc, char** argv)
 	// Create a listen socket
 	printf("DEBUG: creating listen socket on port %s\n", argv[1]);
 	TCListenSocketRef listenSocket = TCListenSocketCreate(argv[1]);
+	if (listenSocket == NULL)
+	{
+		printf("ERROR: listenSocket initialization failed; aborting\n");
+		return EXIT_FAILURE;
+	}
 	
 	// Listen for incoming connections
 	struct timeval listenTimeout = {5, 0};
