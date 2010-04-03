@@ -1,4 +1,11 @@
-int main()
+#include <stdio.h>
+
+int main(int argc, char *argv[])
 {
-	lookup("localhost", "1234");
+	if (argc != 3)
+	{
+		fprintf(stderr, "USAGE: %s hostname port\n", argv[0]);
+		return -1;
+	}
+	lookup(argv[1], argv[2]);
 }
