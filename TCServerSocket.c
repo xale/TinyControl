@@ -30,7 +30,7 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	// If the connection fails, bail
 	if (connectedSocket < 0)
 	{
-		perror("ERROR: connection failed in TCServerSocketCreate()");
+		printf("ERROR: conncetion failed in TCServerSocketCreate()");
 		return NULL;
 	}
 	
@@ -86,7 +86,10 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 	// Attempt to create a UDP socket
 	socket_fd newSocket = socket(connectAddress->sa_family, SOCK_DGRAM, 0);
 	if (newSocket < 0)
+	{
+		perror("ERROR: socket creation failed in TCServerSocketConnect()");
 		return -1;
+	}
 	
 	// Send a reply to the client host's connection request (automatically binds local socket)
 	sendto(newSocket, TC_HANDSHAKE_SYNACK_MSG, strlen(TC_HANDSHAKE_SYNACK_MSG), 0, connectAddress, addressLength);
@@ -103,8 +106,11 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 	switch (select(newSocket + 1, &readFDs, NULL, NULL, &timeout))
 	{
 		case -1:
+			perror("ERROR: select failed in TCServerSocketConnect()");
+			return -1;
+			
 		case 0:
-			// Socket error, or connection timed out; connection failed
+			printf("ERROR: timed out waiting for ACK in TCServerSocketConnect()\n");
 			return -1;
 		
 		default:
@@ -113,8 +119,11 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 				// Read the client's message
 				char readBuffer[TC_HANDSHAKE_BUFFER_SIZE + 1];
 				size_t bytesRead = recv(newSocket, readBuffer, TC_HANDSHAKE_BUFFER_SIZE, 0);
-				if (bytesRead <= 0)
+				if (bytesRead < 0)
+				{
+					perror("ERROR: recv failed in TCServerSocketConnect()");
 					return -1;
+				}	
 				
 				// NULL-terminate the message
 				readBuffer[bytesRead] = 0;
@@ -123,6 +132,7 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 				if (strncmp(readBuffer, TC_HANDSHAKE_ACK_MSG, TC_HANDSHAKE_BUFFER_SIZE) != 0)
 				{
 					// Not an ACK; connection failed
+					printf("ERROR: non-ACK response to handshake in TCServerSocketConnect()\n");
 					return -1;
 				}
 			}
