@@ -9,6 +9,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netdb.h>
@@ -40,6 +41,15 @@ int TCGetAddressInfo(const char* hostname, const char* port, int flags, inet_add
 	freeaddrinfo(addressResults);
 	
 	return 0;
+}
+
+char* TCPrintAddress(socket_address* address)
+{
+	char* buf;
+	char* addr = TCAddressToString(address);
+	asprintf(&buf, "%s:%d", addr, TCAddressGetPort(address));
+	free(addr);
+	return buf;
 }
 
 char* TCAddressToString(socket_address* address)
