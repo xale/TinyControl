@@ -40,6 +40,6 @@ void TCServerSocketDestroy(TCServerSocketRef serverSocket);
 void TCServerSocketSend(TCServerSocketRef serverSocket, const char* data, size_t dataLength);
 
 // Retrieves the string version of the server socket's connected host's IP address
-const char* TCServerSocketGetRemoteAddress(TCServerSocketRef serverSocket);
+socket_address* TCServerSocketGetRemoteAddress(TCServerSocketRef serverSocket);
 
 #endif // TCSERVERSOCKET_H
