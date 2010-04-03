@@ -30,7 +30,7 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	// If the connection fails, bail
 	if (connectedSocket < 0)
 	{
-		printf("ERROR: conncetion failed in TCServerSocketCreate()");
+		printf("ERROR: conncetion failed in TCServerSocketCreate()\n");
 		return NULL;
 	}
 	
