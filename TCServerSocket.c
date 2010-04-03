@@ -29,12 +29,18 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	
 	// If the connection fails, bail
 	if (connectedSocket < 0)
+	{
+		perror("ERROR: connection failed in TCServerSocketCreate()");
 		return NULL;
+	}
 	
 	// Create the server socket object
 	TCServerSocketRef serverSocket = malloc(sizeof(TCServerSocket));
 	if (serverSocket == NULL)
+	{
+		perror("ERROR: serverSocket malloc failed in TCServerSocketCreate()");
 		return NULL;
+	}
 	memset(serverSocket, 0, sizeof(TCServerSocket));
 	serverSocket->sock = connectedSocket;
 	
@@ -47,6 +53,7 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	serverSocket->writeQueue = init_queue();
 	if (serverSocket->writeQueue == NULL)
 	{
+		perror("ERROR: writeQueue malloc failed in TCServerSocketCreate()");
 		TCServerSocketDestroy(serverSocket);
 		return NULL;
 	}
@@ -54,6 +61,7 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	// Create a mutex for the server socket object
 	if (pthread_mutex_init(serverSocket->mutex, NULL) != 0)
 	{
+		perror("ERROR: mutex_init failed in TCServerSocketCreate()");
 		TCServerSocketDestroy(serverSocket);
 		return NULL;
 	}
@@ -64,6 +72,7 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	writeRC = pthread_create(&(serverSocket->writeThread), NULL, TCServerSocketWriteThread, (void*)serverSocket);
 	if ((readRC != 0) || (writeRC != 0))
 	{
+		perror("ERROR: thread initialization failed in TCServerSocketCreate()");
 		TCServerSocketDestroy(serverSocket);
 		return NULL;
 	}
@@ -120,7 +129,7 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 			else
 			{
 				// Should never happen...
-				printf("WARNING: client socket file descriptor not ready for reading after successful select() operation");
+				printf("ERROR: client socket file descriptor not ready for reading after successful select() operation\n");
 				return -1;
 			}
 			break;

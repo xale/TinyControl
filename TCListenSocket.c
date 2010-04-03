@@ -18,21 +18,33 @@ TCListenSocketRef TCListenSocketCreate(const char* listenPort)
 	// Look up the necessary address information to create a local listen socket
 	inet_address_info addressInfo;
 	if (TCGetAddressInfo(NULL, listenPort, AI_PASSIVE, &addressInfo) != 0)
+	{
+		perror("ERROR: address lookup failed in TCListenSocketCreate()");
 		return NULL;
+	}
 	
 	// Create the socket
 	socket_fd newSocket = socket(addressInfo.ai_family, addressInfo.ai_socktype, addressInfo.ai_protocol);
 	if (newSocket < 0)
+	{
+		perror("ERROR: socket creation failed in TCListenSocketCreate()");
 		return NULL;
+	}
 	
 	// Bind the socket to the specified port
 	if (bind(newSocket, addressInfo.ai_addr, addressInfo.ai_addrlen) != 0)
+	{
+		perror("ERROR: bind failed in TCListenSocketCreate()");
 		return NULL;
+	}
 	
 	// Create the listen socket wrapper struct
 	TCListenSocketRef listenSocket = malloc(sizeof(TCListenSocket));
 	if (listenSocket == NULL)
+	{
+		perror("ERROR: malloc failed in TCListenSocketCreate()");
 		return NULL;
+	}
 	
 	// Wrap the socket and return
 	listenSocket->sock = newSocket;
@@ -83,7 +95,7 @@ TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const str
 				if (strncmp(readBuffer, TC_HANDSHAKE_SYN_MSG, TC_HANDSHAKE_BUFFER_SIZE) != 0)
 				{
 					// Should never happen...
-					printf("WARNING: listen socket received non-SYN message from incoming client");
+					printf("ERROR: listen socket received non-SYN message from incoming client\n");
 					break;
 				}
 				
@@ -93,7 +105,7 @@ TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const str
 			else
 			{
 				// Should never happen...
-				printf("WARNING: listen socket file descriptor not ready for reading after successful select() operation");
+				printf("ERROR: listen socket file descriptor not ready for reading after successful select() operation\n");
 			}
 			break;
 	}
