@@ -1,5 +1,6 @@
 cscope.out
 server
+client
 .*.swp
 *.d
 *.o
