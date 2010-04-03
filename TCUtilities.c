@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netdb.h>
+#include <arpa/inet.h>
 #include "TCUtilities.h"
 
 int TCGetAddressInfo(const char* hostname, const char* port, int flags, inet_address_info* result)
@@ -19,10 +20,10 @@ int TCGetAddressInfo(const char* hostname, const char* port, int flags, inet_add
 	if (result == NULL)
 		return -1;
 	
-	// Create the address lookup "hints": IPv4 only, UDP only
+	// Create the address lookup "hints": IPv4 or v6, UDP-only
 	inet_address_info addressHints;
 	memset(&addressHints, 0, sizeof(addressHints));
-	addressHints.ai_family = AF_INET;
+	addressHints.ai_family = AF_UNSPEC;
 	addressHints.ai_socktype = SOCK_DGRAM;
 	addressHints.ai_flags = flags;
 	
@@ -39,4 +40,31 @@ int TCGetAddressInfo(const char* hostname, const char* port, int flags, inet_add
 	freeaddrinfo(addressResults);
 	
 	return 0;
+}
+
+const char* TCAddressToString(socket_address* address)
+{
+	char* buffer;
+	switch(address->sa_family)
+	{
+        case AF_INET:
+			buffer = malloc(INET_ADDRSTRLEN);
+            inet_ntop(AF_INET, &(((struct sockaddr_in *)address)->sin_addr), buffer, INET_ADDRSTRLEN);
+            break;
+			
+        case AF_INET6:
+			buffer = malloc(INET6_ADDRSTRLEN);
+            inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)address)->sin6_addr), buffer, INET6_ADDRSTRLEN);
+            break;
+			
+        default:
+		{
+			char* invalidProtocol = "invalid address";
+			buffer = malloc(strlen(invalidProtocol));
+            strncpy(buffer, invalidProtocol, strlen(invalidProtocol));
+            break;
+		}
+    }
+	
+    return buffer;
 }
