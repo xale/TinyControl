@@ -11,31 +11,22 @@
 #include <netdb.h>
 #include <string.h>
 #include "TCListenSocket.h"
+#include "TCUtilities.h"
 
 TCListenSocketRef TCListenSocketCreate(const char* listenPort)
 {
 	// Look up the necessary address information to create a local listen socket
-	inet_address_info addressHints;
-	inet_address_info_list addressResults;
-	memset(&addressHints, 0, sizeof(addressHints));
-	addressHints.ai_family = AF_INET;
-	addressHints.ai_socktype = SOCK_DGRAM;
-	addressHints.ai_flags = AI_PASSIVE; // autofill local IP address
-	if (getaddrinfo(NULL, listenPort, &addressHints, &addressResults) != 0)
+	inet_address_info addressInfo;
+	if (TCGetAddressInfo(NULL, listenPort, AI_PASSIVE, &addressInfo) != 0)
 		return NULL;
 	
-	// Keep the first of the address lookup results
-	inet_address_info result = *addressResults;
-	result.ai_next = NULL;
-	
-	// Free the remaining results
-	freeaddrinfo(addressResults);
-	
-	// Create a new socket
-	socket_fd newSocket = socket(result.ai_family, result.ai_socktype, result.ai_protocol);
+	// Create the socket
+	socket_fd newSocket = socket(addressInfo.ai_family, addressInfo.ai_socktype, addressInfo.ai_protocol);
+	if (newSocket < 0)
+		return NULL;
 	
 	// Bind the socket to the specified port
-	if (bind(newSocket, result.ai_addr, result.ai_addrlen) != 0)
+	if (bind(newSocket, addressInfo.ai_addr, addressInfo.ai_addrlen) != 0)
 		return NULL;
 	
 	// Create the listen socket wrapper struct
@@ -79,18 +70,11 @@ TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const str
 			{
 				// Attempt to read the incoming message, and determine its origin
 				char readBuffer[TC_HANDSHAKE_BUFFER_SIZE + 1];
-				generic_socket_address clientAddress;
+				socket_address clientAddress;
 				socket_address_length addressLength;
 				size_t bytesRead = recvfrom(listenSocket->sock, readBuffer, TC_HANDSHAKE_BUFFER_SIZE, 0, &clientAddress, &addressLength);
 				if (bytesRead <= 0)
 					break;
-				
-				// Check that the incoming connection is IPv4
-				if (clientAddress.sa_family != AF_INET)
-				{
-					printf("WARNING: listen socket received non-IPv4 connection attempt");
-					break;
-				}
 				
 				// NULL-terminate the string
 				readBuffer[bytesRead] = 0;
@@ -104,7 +88,7 @@ TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const str
 				}
 				
 				// If the message is a connection request, attempt to complete the connection
-				serverSocket = TCServerSocketCreate((inet_socket_address*)&clientAddress);
+				serverSocket = TCServerSocketCreate(&clientAddress, addressLength);
 			}
 			else
 			{
