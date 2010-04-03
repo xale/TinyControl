@@ -12,4 +12,7 @@
 int TCGetAddressInfo(const char* hostname, const char* port, int flags, inet_address_info* result);
 
 // Returns a string representation of the specified socket address
-const char* TCAddressToString(socket_address* address);
+char* TCAddressToString(socket_address* address);
+
+// Returns the port number of the specified socket address
+uint16_t TCAddressGetPort(socket_address* address);
