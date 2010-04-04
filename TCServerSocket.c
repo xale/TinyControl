@@ -33,7 +33,7 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	// If the connection fails, bail
 	if (connectedSocket < 0)
 	{
-		printf("       connection failed in TCServerSocketCreate()\n");
+		fprintf(stderr, "       connection failed in TCServerSocketCreate()\n");
 		return NULL;
 	}
 	
@@ -103,7 +103,7 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 	}
 	if (bytesWritten < (ssize_t)strlen(TC_HANDSHAKE_SYNACK_MSG))
 	{
-		printf("ERROR: unable to send full SYNACK message in TCServerSocketConnect()\n");
+		fprintf(stderr, "ERROR: unable to send full SYNACK message in TCServerSocketConnect()\n");
 		return -1;
 	}
 	
@@ -123,7 +123,7 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 			return -1;
 			
 		case 0:
-			printf("ERROR: timed out waiting for ACK in TCServerSocketConnect()\n");
+			fprintf(stderr, "ERROR: timed out waiting for ACK in TCServerSocketConnect()\n");
 			return -1;
 			
 		default:
@@ -145,14 +145,14 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 				if (strncmp(readBuffer, TC_HANDSHAKE_ACK_MSG, TC_HANDSHAKE_BUFFER_SIZE) != 0)
 				{
 					// Not an ACK; connection failed
-					printf("ERROR: non-ACK response to handshake in TCServerSocketConnect()\n");
+					fprintf(stderr, "ERROR: non-ACK response to handshake in TCServerSocketConnect()\n");
 					return -1;
 				}
 			}
 			else
 			{
 				// Should never happen...
-				printf("ERROR: client socket file descriptor not ready for reading after successful select() operation\n");
+				fprintf(stderr, "ERROR: client socket file descriptor not ready for reading after successful select() operation\n");
 				return -1;
 			}
 			break;
@@ -202,7 +202,7 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, const char* data, size_t
 	if (serverSocket->isWriting)
 	{
 		pthread_mutex_unlock(serverSocket->mutex);
-		printf("WARNING: attempt to write to server socket with queued data");
+		fprintf(stderr, "WARNING: attempt to write to server socket with queued data");
 		return;
 	}
 	

@@ -24,7 +24,7 @@ int main(int argc, char** argv)
 	TCListenSocketRef listenSocket = TCListenSocketCreate(argv[1]);
 	if (listenSocket == NULL)
 	{
-		printf("ERROR: listenSocket initialization failed; aborting\n");
+		fprintf(stderr, "ERROR: listenSocket initialization failed; aborting\n");
 		return EXIT_FAILURE;
 	}
 	
