@@ -62,7 +62,7 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	}
 	
 	// Create a mutex for the server socket object
-	if (pthread_mutex_init(serverSocket->mutex, NULL) != 0)
+	if (pthread_mutex_init(&(serverSocket->mutex), NULL) != 0)
 	{
 		perror("ERROR: mutex_init failed in TCServerSocketCreate()");
 		TCServerSocketDestroy(serverSocket);
@@ -168,7 +168,7 @@ void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 		return;
 	
 	// Acquire mutex
-	pthread_mutex_lock(serverSocket->mutex);
+	pthread_mutex_lock(&(serverSocket->mutex));
 	
 	// Shut down the read and write threads
 	serverSocket->isReading = false;
@@ -179,10 +179,10 @@ void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 	pthread_join(serverSocket->writeThread, NULL);
 	
 	// Release mutex
-	pthread_mutex_unlock(serverSocket->mutex);
+	pthread_mutex_unlock(&(serverSocket->mutex));
 	
 	// Free the mutex
-	pthread_mutex_destroy(serverSocket->mutex);
+	pthread_mutex_destroy(&(serverSocket->mutex));
 	
 	// Free the write queue
 	free_queue(serverSocket->writeQueue);
@@ -196,12 +196,12 @@ void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 
 void TCServerSocketSend(TCServerSocketRef serverSocket, const char* data, size_t dataLength)
 {
-	pthread_mutex_lock(serverSocket->mutex);
+	pthread_mutex_lock(&(serverSocket->mutex));
 	
 	// Check that the socket is not already writing data
 	if (serverSocket->isWriting)
 	{
-		pthread_mutex_unlock(serverSocket->mutex);
+		pthread_mutex_unlock(&(serverSocket->mutex));
 		fprintf(stderr, "WARNING: attempt to write to server socket with queued data");
 		return;
 	}
@@ -227,7 +227,7 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, const char* data, size_t
 	// Start the server writing
 	serverSocket->isWriting = true;
 	
-	pthread_mutex_unlock(serverSocket->mutex);
+	pthread_mutex_unlock(&(serverSocket->mutex));
 }
 
 void* TCServerSocketReadThread(void* serverSocket)
