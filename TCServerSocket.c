@@ -14,7 +14,7 @@
 
 // Private "methods"
 // Attempts to perform the second and third stages of a connection handshake; returns a socket file descriptor connected to the client if successful, or -1 in the event of an error.
-socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_address_length addressLength);
+socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_address_length addressLength, time_delta* initialRTT);
 
 // Manages the congestion feedback/flow control of the specified socket; run as a separate thread.
 void* TCServerSocketReadThread(void* serverSocket);
@@ -24,11 +24,9 @@ void* TCServerSocketWriteThread(void* serverSocket);
 
 TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, socket_address_length addressLength)
 {
-	// Make a note of the time, for the initial RTT estimate
-	// FIXME: WRITEME
-	
 	// Attempt to finalize the connection with the client
-	socket_fd connectedSocket = TCServerSocketConnect(connectAddress, addressLength);
+	time_delta initialRTT;
+	socket_fd connectedSocket = TCServerSocketConnect(connectAddress, addressLength, &initialRTT);
 	
 	// If the connection fails, bail
 	if (connectedSocket < 0)
@@ -51,6 +49,9 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	serverSocket->remoteAddress = malloc(addressLength);
 	memcpy(serverSocket->remoteAddress, connectAddress, addressLength);
 	serverSocket->remoteAddressLength = addressLength;
+	
+	// Copy the initial RTT
+	serverSocket->RTT = initialRTT;
 	
 	// Create a queue for pending writes to the socket
 	serverSocket->writeQueue = init_queue();
@@ -84,13 +85,21 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	return serverSocket;
 }
 
-socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_address_length addressLength)
+socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_address_length addressLength, time_delta* initialRTT)
 {
 	// Attempt to create a UDP socket
 	socket_fd newSocket = socket(connectAddress->sa_family, SOCK_DGRAM, 0);
 	if (newSocket < 0)
 	{
 		perror("ERROR: socket creation failed in TCServerSocketConnect()");
+		return -1;
+	}
+	
+	// Make note of the time, for the initial RTT calculation
+	time_of_day timeSYNACK;
+	if (gettimeofday(&timeSYNACK, NULL) != 0)
+	{
+		perror("ERROR: cannot get time of SYNACK in TCServerSocketConnect()");
 		return -1;
 	}
 	
@@ -115,7 +124,7 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 	FD_SET(newSocket, &readFDs);
 	
 	// Select on the socket, waiting for the client to ACK the connection
-	struct timeval timeout = TC_HANDSHAKE_TIMEOUT;
+	time_delta timeout = TC_HANDSHAKE_TIMEOUT;
 	switch (select(newSocket + 1, &readFDs, NULL, NULL, &timeout))
 	{
 		case -1:
@@ -136,7 +145,15 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 				{
 					perror("ERROR: recv failed in TCServerSocketConnect()");
 					return -1;
-				}	
+				}
+				
+				// Note the time
+				time_of_day timeACK;
+				if (gettimeofday(&timeACK, NULL) != 0)
+				{
+					perror("ERROR: cannot get time of ACK in TCServerSocketConnect()");
+					return -1;
+				}
 				
 				// NULL-terminate the message
 				readBuffer[bytesRead] = 0;
@@ -148,6 +165,9 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 					fprintf(stderr, "ERROR: non-ACK response to handshake in TCServerSocketConnect()\n");
 					return -1;
 				}
+				
+				// Calculate the round-trip-time
+				time_subtract(initialRTT, &timeACK, &timeSYNACK);
 			}
 			else
 			{

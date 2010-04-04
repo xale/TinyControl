@@ -26,7 +26,7 @@ typedef struct TCServerSocket
 	pthread_t writeThread;
 	bool isWriting;
 	
-	struct timeval RTT;
+	time_delta RTT;
 	
 	queue* writeQueue;
 } TCServerSocket;
