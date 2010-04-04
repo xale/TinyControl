@@ -22,8 +22,7 @@ queue* init_queue(void)
 queue_elem* pop_front(queue* q)
 {
 	assert(q->head != NULL);
-	assert(q->count > 0);
-	queue_elem* ret = q->head;
+	queue_elem *ret = q->head;
 	q->head = ret->next;
 	q->count--;
 	return ret;
@@ -38,8 +37,16 @@ int push_back(queue* q, unsigned int payload_size, payload_t payload)
 	}
 	last->payload_size = payload_size;
 	memcpy(last->payload, payload, payload_size);
-	q->tail->next = last;
-	q->tail = last;
+	last->next = NULL;
+	if (q->tail == NULL)
+	{
+		q->head = q->tail = last;
+	}
+	else
+	{
+		q->tail->next = last;
+		q->tail = last;
+	}
 	q->count++;
 	return 0;
 }
