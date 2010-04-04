@@ -31,14 +31,18 @@ int lookup(char* address, char* port)
 		fprintf(stderr, "Failed to open socket.\n");
 		return -1;
 	}
-	status = sendto(sock, TC_HANDSHAKE_SYN_MSG, strlen(TC_HANDSHAKE_SYN_MSG), 0,
-			result->ai_addr, sizeof (struct sockaddr_storage));
-	// TODO: anticipate failure
+	status = sendto(sock, TC_HANDSHAKE_SYN_MSG, strlen(TC_HANDSHAKE_SYN_MSG), 0, result->ai_addr, result->ai_addrlen);
+	if (status >= 0)
 	{
 		char* str = TCPrintAddress(result->ai_addr);
 		fprintf(stderr, "Sent %d bytes of %zu to %s.\n",
 				status, strlen(TC_HANDSHAKE_SYN_MSG), str);
 		free(str);
+	}
+	else
+	{
+		perror("Failed to send SYN");
+		return -1;
 	}
 	struct sockaddr_storage server;
 	unsigned int fromlen;
@@ -97,5 +101,9 @@ int reader(int sock, struct queue* q)
 		flag = 0;
 	}
 	ntoh_data_packet(data_buffer, &data);
+	
+	// TODO: unfinished
+	
+	return 0;
 }
 
