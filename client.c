@@ -27,6 +27,7 @@ int writer(queue* q)
 	while (q->count > 0)
 	{
 		pqe = pop_front(q);
+		fprintf(stderr, "Popped packet.\n");
 		bytes_written = write(STDOUT_FILENO, pqe->payload, pqe->payload_size);
 		// FIXME: check bytes_written
 		free(pqe);
