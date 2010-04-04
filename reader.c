@@ -39,5 +39,5 @@ int lookup(char* address, char* port)
 	connect(sock, (struct sockaddr*) &server, fromlen);
 	// TODO: anticipate failure
 
-	send(sock, TC_HANDSHAKE_SYNACK_MSG, strlen(TC_HANDSHAKE_SYNACK_MSG), 0);
+	send(sock, TC_HANDSHAKE_ACK_MSG, strlen(TC_HANDSHAKE_ACK_MSG), 0);
 }
