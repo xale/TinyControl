@@ -19,11 +19,14 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 // Manages the congestion feedback/flow control of the specified socket; run as a separate thread.
 void* TCServerSocketReadThread(void* serverSocket);
 
+// Reads a feedback packet from the server socket, returning the number of bytes read, or -1 on error; called by read thread.
+ssize_t TCServerSocketReceiveFeedback(TCServerSocketRef serverSocket, feedback_packet* packet);
+
 // Manages the sending of queued outgoing data on the specified socket; run as a separate thread.
 void* TCServerSocketWriteThread(void* serverSocket);
 
-// Sends a data_packet over the specified socket; called by the write thread.
-int TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* packet, size_t payloadLength);
+// Sends a data_packet over the specified socket, returning the number of bytes written, or -1 on error; called by the write thread.
+ssize_t TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* packet, size_t packetLength);
 
 TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, socket_address_length addressLength)
 {
@@ -85,14 +88,31 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	}
 	
 	/* FIXME: testing data transfer ================================================================================ */
-	data_packet testPacket;
-	memset(&(testPacket.payload), 0, MAX_PAYLOAD_SIZE);
-	testPacket.seq_number = htonl(0xDEADBEEF);
-	testPacket.timestamp = htonl(100);
-	testPacket.rtt = htonl(10);
+	data_packet testData;
+	memset(&(testData.payload), 0, MAX_PAYLOAD_SIZE);
+	testData.seq_number = htonl(0xDEADBEEF);
+	testData.timestamp = htonl(100);
+	testData.rtt = htonl(10);
 	
-	TCServerSocketSendPacket(serverSocket, &testPacket, MAX_PAYLOAD_SIZE);
+	if (TCServerSocketSendPacket(serverSocket, &testData, (DATA_PACKET_HEADER_LENGTH + MAX_PAYLOAD_SIZE)) < 0)
+	{
+		perror("DEBUG: ERROR: error sending data packet in TCServerSocketCreate()");
+	}
 	/* FIXME: testing data transfer ================================================================================ */
+	
+	/* FIXME: testing feedback receiving =========================================================================== */
+	feedback_packet testFeedback;
+	if (TCServerSocketReceiveFeedback(serverSocket, &testFeedback) < 0)
+	{
+		perror("DEBUG: ERROR: error receiving feedback in TCServerSocketCreate()");
+	}
+	else
+	{
+		char* buf = TCPrintFeedbackPacket(&testFeedback);
+		printf("DEBUG: feedback packet received: %s\n", buf);
+		free(buf);
+	}
+	/* FIXME: testing feedback receiving =========================================================================== */
 	
 	// If everything looks good so far, return the new socket, ready for writing
 	return serverSocket;
@@ -277,6 +297,22 @@ void* TCServerSocketReadThread(void* serverSocket)
 	pthread_exit(NULL);
 }
 
+ssize_t TCServerSocketReceiveFeedback(TCServerSocketRef serverSocket, feedback_packet* packet)
+{
+	uint8_t readBuffer[sizeof(feedback_packet)];
+	ssize_t bytesRead = recv(serverSocket->sock, readBuffer, sizeof(feedback_packet), 0);
+	
+	if (bytesRead == sizeof(feedback_packet))
+	{
+		packet->timestamp = (uint32_t)(*readBuffer);
+		packet->elapsed_time = (uint32_t)(*(readBuffer + TIMESTAMP_FIELD_WIDTH));
+		packet->receive_rate = (uint32_t)(*(readBuffer + TIMESTAMP_FIELD_WIDTH + ELAPSED_T_FIELD_WIDTH));
+		packet->loss_event_rate = (uint32_t)(*(readBuffer + TIMESTAMP_FIELD_WIDTH + ELAPSED_T_FIELD_WIDTH + RECV_RATE_FIELD_WIDTH));
+	}
+	
+	return bytesRead;
+}
+
 void* TCServerSocketWriteThread(void* serverSocket)
 {
 	// FIXME: WRITEME
@@ -284,9 +320,9 @@ void* TCServerSocketWriteThread(void* serverSocket)
 	pthread_exit(NULL);
 }
 
-int TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* packet, size_t payloadLength)
+ssize_t TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* packet, size_t packetLength)
 {
-	return send(serverSocket->sock, (void*)packet, (DATA_PACKET_HEADER_LENGTH + payloadLength), 0);
+	return send(serverSocket->sock, (void*)packet, packetLength, 0);
 }
 
 socket_address* TCServerSocketGetRemoteAddress(TCServerSocketRef serverSocket)
