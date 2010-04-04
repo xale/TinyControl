@@ -313,7 +313,7 @@ uint32_t TCServerSocketGetSendRate(TCServerSocketRef serverSocket)
 	uint32_t rate;
 	pthread_mutex_lock(&(serverSocket->mutex));
 	rate = serverSocket->sendRate;
-	pthread_mutex_lock(&(serverSocket->mutex));
+	pthread_mutex_unlock(&(serverSocket->mutex));
 	return rate;
 }
 
