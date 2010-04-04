@@ -27,7 +27,7 @@ profile: all
 
 .PHONY:clean
 clean:
-	$(RM) *.o *.d $(EXECUTABLES)
+	$(RM) *.o *.d *.out *.gcov *.gcda *.gcno tstfile $(EXECUTABLES)
 
 %.d: %.c
 	$(SHELL) -ec "$(CC) -M $< | sed 's/^$*.o/& $@/g' > $@"
