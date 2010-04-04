@@ -109,16 +109,28 @@ int reader(int sock, struct queue* q)
 		received = recv(sock, &data_buffer, DATA_PACKET_SIZE, 0);
 		if (received <= 0)
 		{
-			fprintf(stderr, "No data read; error or connection close.");
+			fprintf(stderr, "No data read; error or connection close.\n");
 			retval = -1;
 			break;
 		}
 		else if (received < DATA_PACKET_SIZE)
 		{
-			fprintf(stderr, "Short packet.");
+			fprintf(stderr, "Short packet.\n");
+			if (received < DATA_PACKET_HEADER_LENGTH)
+			{
+				fprintf(stderr, "Incomplete header.\n");
+				retval = -1;
+				break;
+			}
+			else if (received == DATA_PACKET_HEADER_LENGTH)
+			{
+				fprintf(stderr, "Empty packet.\n");
+				break;
+			}
 			flag = 0;
 		}
 		ntoh_data_packet(data_buffer, &data);
+		print_data_packet(&data);
 
 		// FIXME:get time
 
@@ -131,11 +143,10 @@ int reader(int sock, struct queue* q)
 		hton_feedback_packet(&feedback, feedback_buffer);
 
 		send(sock, feedback_buffer, FEEDBACK_PACKET_SIZE, 0);
-		fprintf(stderr, "Sent feedback packet.");
+		fprintf(stderr, "Sent feedback packet.\n");
 
-		assert(received - 12 > 0);
-		push_back(q, received - 12, data.payload);
-		fprintf(stderr, "Pushed data to queue.");
+		push_back(q, received - DATA_PACKET_HEADER_LENGTH, data.payload);
+		fprintf(stderr, "Pushed data to queue.\n");
 	}
 	
 	return retval;
