@@ -28,20 +28,24 @@ int lookup(char* address, char* port)
 		// failed to open socket
 		return -1;
 	}
-	sendto(sock, TC_HANDSHAKE_SYN_MSG, strlen(TC_HANDSHAKE_SYN_MSG), 0,
+	status = sendto(sock, TC_HANDSHAKE_SYN_MSG, strlen(TC_HANDSHAKE_SYN_MSG), 0,
 			result->ai_addr, sizeof (struct sockaddr_storage));
-	// TODO: anticipate failure
+
 	struct sockaddr_storage server;
 	unsigned int fromlen;
 	char buf[TC_HANDSHAKE_BUFFER_SIZE+1];
-	recvfrom(sock, &buf, TC_HANDSHAKE_BUFFER_SIZE, 0,
+	status = recvfrom(sock, &buf, TC_HANDSHAKE_BUFFER_SIZE, 0,
 			(struct sockaddr*) &server, &fromlen);
+	if (!strncmp(buf, TC_HANDSHAKE_SYNACK_MSG, strlen(TC_HANDSHAKE_SYNACK_MSG)))
+	{
+		// not a synack
+		return -1;
+	}
+
+	status = connect(sock, (struct sockaddr*) &server, fromlen);
 	// TODO: anticipate failure
 
-	connect(sock, (struct sockaddr*) &server, fromlen);
-	// TODO: anticipate failure
-
-	send(sock, TC_HANDSHAKE_SYNACK_MSG, strlen(TC_HANDSHAKE_SYNACK_MSG), 0);
+	status = send(sock, TC_HANDSHAKE_ACK_MSG, strlen(TC_HANDSHAKE_ACK_MSG), 0);
 
 	// return a connected sockfd
 	return sock;
