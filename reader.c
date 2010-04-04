@@ -53,13 +53,15 @@ int lookup(char* address, char* port)
 		fprintf(stderr, "Received %d bytes: \"%s\" from %s.\n", status, buf, str);
 		free(str);
 	}
-	if (!strncmp(buf, TC_HANDSHAKE_SYNACK_MSG, strlen(TC_HANDSHAKE_SYNACK_MSG)))
+	if (strncmp(buf, TC_HANDSHAKE_SYNACK_MSG, strlen(TC_HANDSHAKE_SYNACK_MSG)))
 	{
 		// not a synack
+		fprintf(stderr, "Received \"%s\" but expected \"%s\".\n", buf, TC_HANDSHAKE_SYNACK_MSG);
 		return -1;
 	}
 	status = connect(sock, (struct sockaddr*) &server, fromlen);
-	// TODO: anticipate failure
+
+	fprintf(stderr, "Status on connect is %d.\n", status);
 
 	status = send(sock, TC_HANDSHAKE_ACK_MSG, strlen(TC_HANDSHAKE_ACK_MSG), 0);
 	{
@@ -84,6 +86,8 @@ int reader(int sock, struct queue* q)
 	data_packet data;
 	int received;
 	int flag;
+	uint32_t time = -1;
+	uint32_t timetmp = -1;
 	memset(&data_buffer, 0, sizeof(data_packet));
 	received = recv(sock, &data_buffer, sizeof(data_packet), 0);
 	if (received <= 0)
