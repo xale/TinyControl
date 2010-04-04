@@ -43,6 +43,7 @@ int lookup(char* address, char* port)
 	struct sockaddr_storage server;
 	unsigned int fromlen;
 	char buf[TC_HANDSHAKE_BUFFER_SIZE+1];
+	memset(buf, 0, TC_HANDSHAKE_BUFFER_SIZE + 1);
 	status = recvfrom(sock, buf, TC_HANDSHAKE_BUFFER_SIZE, 0,
 			(struct sockaddr*) &server, &fromlen);
 	{
