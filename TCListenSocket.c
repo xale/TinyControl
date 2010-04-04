@@ -97,9 +97,9 @@ TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const str
 				// NULL-terminate the string
 				readBuffer[bytesRead] = 0;
 				
-				char* buf = TCPrintAddress(&clientAddress);
-				printf("       received %zd bytes from %s\n", bytesRead, buf);
-				free(buf);
+				char* addrBuf = TCPrintAddress(&clientAddress);
+				printf("       received %zd bytes from %s: %s\n", bytesRead, addrBuf, readBuffer);
+				free(addrBuf);
 				
 				// Check that the message is a connection request
 				if (strncmp(readBuffer, TC_HANDSHAKE_SYN_MSG, TC_HANDSHAKE_BUFFER_SIZE) != 0)
