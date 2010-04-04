@@ -30,7 +30,7 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	// If the connection fails, bail
 	if (connectedSocket < 0)
 	{
-		printf("ERROR: conncetion failed in TCServerSocketCreate()\n");
+		printf("ERROR: connection failed in TCServerSocketCreate()\n");
 		return NULL;
 	}
 	
@@ -118,7 +118,7 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 			{
 				// Read the client's message
 				char readBuffer[TC_HANDSHAKE_BUFFER_SIZE + 1];
-				size_t bytesRead = recv(newSocket, readBuffer, TC_HANDSHAKE_BUFFER_SIZE, 0);
+				ssize_t bytesRead = recv(newSocket, readBuffer, TC_HANDSHAKE_BUFFER_SIZE, 0);
 				if (bytesRead < 0)
 				{
 					perror("ERROR: recv failed in TCServerSocketConnect()");
@@ -231,7 +231,7 @@ void* TCServerSocketWriteThread(void* serverSocket)
 	pthread_exit(NULL);
 }
 
-const char* TCServerSocketGetRemoteAddress(TCServerSocketRef serverSocket)
+socket_address* TCServerSocketGetRemoteAddress(TCServerSocketRef serverSocket)
 {
-	return TCAddressToString(serverSocket->remoteAddress);
+	return serverSocket->remoteAddress;
 }
