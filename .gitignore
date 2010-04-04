@@ -6,6 +6,9 @@ tstfile
 .*.swp
 *.d
 *.o
+*.gcov
+*.gcda
+*.gcno
 
 # Xcode noise
 TinyControl.xcodeproj
