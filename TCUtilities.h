@@ -8,6 +8,8 @@
 
 #include "TCTypes.h"
 
+struct data_packet;
+
 // Stores the result of getaddrinfo() with the appropriate options in 'result'; returns 0 on success, -1 on failure
 int TCGetAddressInfo(const char* hostname, const char* port, int flags, inet_address_info* result);
 
@@ -22,3 +24,5 @@ uint16_t TCAddressGetPort(socket_address* address);
 
 // Subtract time 'y' from time 'x', storing the result in 'result'. Returns 1 if the difference is negative, otherwise 0.
 int time_subtract(time_delta* result, time_of_day* x, time_of_day* y);
+
+void print_data_packet(struct data_packet *);

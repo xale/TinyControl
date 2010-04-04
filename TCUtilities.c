@@ -14,6 +14,8 @@
 #include <sys/types.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+
+#include "TCPacket.h"
 #include "TCUtilities.h"
 
 int TCGetAddressInfo(const char* hostname, const char* port, int flags, inet_address_info* result)
@@ -117,4 +119,9 @@ int time_subtract(time_delta* result, time_of_day* x, time_of_day* y)
 	
 	/* Return 1 if result is negative. */
 	return (x->tv_sec < y->tv_sec);
+}
+
+void print_data_packet(data_packet *data)
+{
+	fprintf(stderr, "seq = %u\nts = %u\nrtt = %u\n", data->seq_number, data->timestamp, data->rtt);
 }
