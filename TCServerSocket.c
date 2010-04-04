@@ -5,9 +5,12 @@
 //
 
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/uio.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include "TCServerSocket.h"
 #include "TCPacket.h"
 #include "TCUtilities.h"
@@ -22,11 +25,11 @@ void* TCServerSocketReadThread(void* serverSocket);
 // Reads a feedback packet from the server socket, returning the number of bytes read, or -1 on error; called by read thread.
 ssize_t TCServerSocketReceiveFeedback(TCServerSocketRef serverSocket, feedback_packet* packet);
 
-// Manages the sending of queued outgoing data on the specified socket; run as a separate thread.
-void* TCServerSocketWriteThread(void* serverSocket);
-
 // Sends a data_packet over the specified socket, returning the number of bytes written, or -1 on error; called by the write thread.
 ssize_t TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* packet, size_t packetLength);
+
+// Retrieves the current send rate for the server socket
+uint32_t TCServerSocketGetSendRate(TCServerSocketRef serverSocket);
 
 TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, socket_address_length addressLength)
 {
@@ -59,14 +62,8 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	// Copy the initial RTT
 	serverSocket->RTT = initialRTT;
 	
-	// Create a queue for pending writes to the socket
-	serverSocket->writeQueue = init_queue();
-	if (serverSocket->writeQueue == NULL)
-	{
-		perror("ERROR: writeQueue malloc failed in TCServerSocketCreate()");
-		TCServerSocketDestroy(serverSocket);
-		return NULL;
-	}
+	// Set the initial send rate (one packet per RTT)
+	serverSocket->sendRate = MAX_PAYLOAD_SIZE;
 	
 	// Create a mutex for the server socket object
 	if (pthread_mutex_init(&(serverSocket->mutex), NULL) != 0)
@@ -77,10 +74,9 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	}
 	
 	// Create threads to handle writing data to and reading congestion feedback information from the client
-	int readRC, writeRC;
-	readRC = pthread_create(&(serverSocket->readThread), NULL, TCServerSocketReadThread, (void*)serverSocket);
-	writeRC = pthread_create(&(serverSocket->writeThread), NULL, TCServerSocketWriteThread, (void*)serverSocket);
-	if ((readRC != 0) || (writeRC != 0))
+	int rc;
+	rc = pthread_create(&(serverSocket->readThread), NULL, TCServerSocketReadThread, (void*)serverSocket);
+	if (rc != 0)
 	{
 		perror("ERROR: thread initialization failed in TCServerSocketCreate()");
 		TCServerSocketDestroy(serverSocket);
@@ -230,22 +226,17 @@ void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 	// Acquire mutex
 	pthread_mutex_lock(&(serverSocket->mutex));
 	
-	// Shut down the read and write threads
+	// Shut down the read thread
 	serverSocket->isReading = false;
-	serverSocket->isWriting = false;
 	
-	// Wait for the threads to stop
+	// Wait for the thread to stop
 	pthread_join(serverSocket->readThread, NULL);
-	pthread_join(serverSocket->writeThread, NULL);
 	
 	// Release mutex
 	pthread_mutex_unlock(&(serverSocket->mutex));
 	
 	// Free the mutex
 	pthread_mutex_destroy(&(serverSocket->mutex));
-	
-	// Free the write queue
-	free_queue(serverSocket->writeQueue);
 	
 	// Free the client's address
 	free(serverSocket->remoteAddress);
@@ -254,40 +245,61 @@ void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 	free(serverSocket);
 }
 
-void TCServerSocketSend(TCServerSocketRef serverSocket, const char* data, size_t dataLength)
+void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 {
-	pthread_mutex_lock(&(serverSocket->mutex));
-	
-	// Check that the socket is not already writing data
-	if (serverSocket->isWriting)
+	bool writing = true;
+	while (writing)
 	{
-		pthread_mutex_unlock(&(serverSocket->mutex));
-		fprintf(stderr, "WARNING: attempt to write to server socket with queued data");
-		return;
+		// Sleep for one second
+		sleep(1);
+		
+		// Update the send rate
+		uint32_t bytesToSend = TCServerSocketGetSendRate(serverSocket);
+		
+		// Write packets until we reach the send rate limit, or run out of data to send
+		data_packet packet;
+		for (uint32_t bytesSent = 0; bytesSent < bytesToSend;)
+		{
+			// Read a packet's worth of data from the file
+			ssize_t bytesRead = read(file, &(packet.payload), MAX_PAYLOAD_SIZE);
+			
+			// If the read fails, abort sending immediately
+			if (bytesRead < 0)
+			{
+				writing = false;
+				break;
+			}
+			
+			// If the end of the file has been reached, stop sending after this packet
+			if (bytesRead < MAX_PAYLOAD_SIZE)
+			{
+				writing = false;
+			}
+			
+			// Fill the other fields of the packet
+			packet.seq_number = 0;	// FIXME: temporary
+			packet.timestamp = 0;	// FIXME: temporary
+			packet.rtt = 0;			// FIXME: temporary
+			
+			// Attempt to send the packet
+			ssize_t bytesWritten = TCServerSocketSendPacket(serverSocket, &packet, (DATA_PACKET_HEADER_LENGTH + bytesRead));
+			
+			// If the send fails, abort sending immediately
+			if (bytesWritten < bytesRead)
+			{
+				writing = false;
+				break;
+			}
+			
+			// Add the bytes written to the total number of bytes sent during this write event
+			bytesSent += bytesWritten;
+		}
 	}
-	
-	// Fill the queue with packet payloads
-	payload_t nextPayload;
-	size_t payloadSize, dataLeft = dataLength;
-	while (dataLeft > 0)
-	{
-		// Calculate the size of this packet payload
-		payloadSize = (MAX_PAYLOAD_SIZE > dataLeft) ? dataLeft : MAX_PAYLOAD_SIZE;
-		
-		// Load the packet
-		memcpy(&nextPayload, data + (dataLength - dataLeft), payloadSize);
-		
-		// Add the packet to the queue
-		push_back(serverSocket->writeQueue, payloadSize, nextPayload);
-		
-		// Subtract the amount of data added to the queue from the amount remaining
-		dataLeft -= payloadSize;
-	}
-	
-	// Start the server writing
-	serverSocket->isWriting = true;
-	
-	pthread_mutex_unlock(&(serverSocket->mutex));
+}
+
+ssize_t TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* packet, size_t packetLength)
+{
+	return send(serverSocket->sock, (void*)packet, packetLength, 0);
 }
 
 void* TCServerSocketReadThread(void* serverSocket)
@@ -313,16 +325,13 @@ ssize_t TCServerSocketReceiveFeedback(TCServerSocketRef serverSocket, feedback_p
 	return bytesRead;
 }
 
-void* TCServerSocketWriteThread(void* serverSocket)
+uint32_t TCServerSocketGetSendRate(TCServerSocketRef serverSocket)
 {
-	// FIXME: WRITEME
-	
-	pthread_exit(NULL);
-}
-
-ssize_t TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* packet, size_t packetLength)
-{
-	return send(serverSocket->sock, (void*)packet, packetLength, 0);
+	uint32_t rate;
+	pthread_mutex_lock(&(serverSocket->mutex));
+	rate = serverSocket->sendRate;
+	pthread_mutex_lock(&(serverSocket->mutex));
+	return rate;
 }
 
 socket_address* TCServerSocketGetRemoteAddress(TCServerSocketRef serverSocket)

@@ -23,12 +23,9 @@ typedef struct TCServerSocket
 	pthread_mutex_t mutex;
 	pthread_t readThread;
 	bool isReading;
-	pthread_t writeThread;
-	bool isWriting;
 	
+	uint32_t sendRate;
 	time_delta RTT;
-	
-	queue* writeQueue;
 } TCServerSocket;
 
 typedef TCServerSocket* TCServerSocketRef;
@@ -39,8 +36,8 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 // Closes, cleans up and frees a TinyControl server socket
 void TCServerSocketDestroy(TCServerSocketRef serverSocket);
 
-// Sends the specified data over a TinyControl server socket
-void TCServerSocketSend(TCServerSocketRef serverSocket, const char* data, size_t dataLength);
+// Send the contents of the specified file over a TinyControl server socket
+void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file);
 
 // Retrieves the string version of the server socket's connected host's IP address
 socket_address* TCServerSocketGetRemoteAddress(TCServerSocketRef serverSocket);
