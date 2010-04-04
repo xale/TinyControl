@@ -1,6 +1,7 @@
 cscope.out
 server
 client
+tstfile
 .*.swp
 *.d
 *.o
