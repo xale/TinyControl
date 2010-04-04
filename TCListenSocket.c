@@ -87,12 +87,19 @@ TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const str
 				char readBuffer[TC_HANDSHAKE_BUFFER_SIZE + 1];
 				socket_address clientAddress;
 				socket_address_length addressLength;
-				size_t bytesRead = recvfrom(listenSocket->sock, readBuffer, TC_HANDSHAKE_BUFFER_SIZE, 0, &clientAddress, &addressLength);
-				if (bytesRead <= 0)
+				ssize_t bytesRead = recvfrom(listenSocket->sock, readBuffer, TC_HANDSHAKE_BUFFER_SIZE, 0, &clientAddress, &addressLength);
+				if (bytesRead < 0)
+				{
+					perror("ERROR: recvfrom() failed in TCListenSocketAccept()");
 					break;
+				}
 				
 				// NULL-terminate the string
 				readBuffer[bytesRead] = 0;
+				
+				char* buf = TCPrintAddress(&clientAddress);
+				printf("       received %zd bytes from %s\n", bytesRead, buf);
+				free(buf);
 				
 				// Check that the message is a connection request
 				if (strncmp(readBuffer, TC_HANDSHAKE_SYN_MSG, TC_HANDSHAKE_BUFFER_SIZE) != 0)

@@ -33,7 +33,7 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	// If the connection fails, bail
 	if (connectedSocket < 0)
 	{
-		printf("ERROR: connection failed in TCServerSocketCreate()\n");
+		printf("       connection failed in TCServerSocketCreate()\n");
 		return NULL;
 	}
 	
@@ -95,7 +95,11 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 	}
 	
 	// Send a reply to the client host's connection request (automatically binds local socket)
-	sendto(newSocket, TC_HANDSHAKE_SYNACK_MSG, strlen(TC_HANDSHAKE_SYNACK_MSG), 0, connectAddress, addressLength);
+	if (sendto(newSocket, TC_HANDSHAKE_SYNACK_MSG, strlen(TC_HANDSHAKE_SYNACK_MSG), 0, connectAddress, addressLength) != 0)
+	{
+		perror("ERROR: sendto failed in TCServerSocketConnect()");
+		return -1;
+	}
 	
 	// Create a read-file-descriptor-set for select()ing on the socket
 	fd_set readFDs;
