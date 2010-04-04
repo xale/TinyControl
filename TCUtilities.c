@@ -118,3 +118,10 @@ int time_subtract(time_delta* result, time_of_day* x, time_of_day* y)
 	/* Return 1 if result is negative. */
 	return (x->tv_sec < y->tv_sec);
 }
+
+char* TCPrintFeedbackPacket(feedback_packet* packet)
+{
+	char* buf;
+	asprintf(&buf, "{timestamp=%d, elapsed_time=%d, receive_rate=%d, loss_event_rate=%d}", packet->timestamp, packet->elapsed_time, packet->receive_rate, packet->loss_event_rate);
+	return buf;
+}
