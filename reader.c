@@ -35,8 +35,7 @@ int lookup(char* address, char* port)
 	if (status >= 0)
 	{
 		char* str = TCPrintAddress(result->ai_addr);
-		fprintf(stderr, "Sent %d bytes of %zu to %s.\n",
-				status, strlen(TC_HANDSHAKE_SYN_MSG), str);
+		fprintf(stderr, "Sent %d bytes of %zu to %s.\n", status, strlen(TC_HANDSHAKE_SYN_MSG), str);
 		free(str);
 	}
 	else
@@ -45,15 +44,13 @@ int lookup(char* address, char* port)
 		return -1;
 	}
 	struct sockaddr_storage server;
-	unsigned int fromlen;
+	unsigned int fromlen = sizeof(struct sockaddr_storage);
 	char buf[TC_HANDSHAKE_BUFFER_SIZE+1];
 	memset(buf, 0, TC_HANDSHAKE_BUFFER_SIZE + 1);
-	status = recvfrom(sock, buf, TC_HANDSHAKE_BUFFER_SIZE, 0,
-			(struct sockaddr*) &server, &fromlen);
+	status = recvfrom(sock, buf, TC_HANDSHAKE_BUFFER_SIZE, 0, (struct sockaddr*) &server, &fromlen);
 	{
 		char* str = TCPrintAddress((struct sockaddr*) &server);
-		fprintf(stderr, "Received %d bytes: \"%s\" from %s.\n",
-				status, buf, str);
+		fprintf(stderr, "Received %d bytes: \"%s\" from %s.\n", status, buf, str);
 		free(str);
 	}
 	if (!strncmp(buf, TC_HANDSHAKE_SYNACK_MSG, strlen(TC_HANDSHAKE_SYNACK_MSG)))
@@ -66,8 +63,7 @@ int lookup(char* address, char* port)
 
 	status = send(sock, TC_HANDSHAKE_ACK_MSG, strlen(TC_HANDSHAKE_ACK_MSG), 0);
 	{
-		fprintf(stderr, "Sent %d bytes of %zu.\n",
-				status, strlen(TC_HANDSHAKE_SYNACK_MSG));
+		fprintf(stderr, "Sent %d bytes of %zu.\n", status, strlen(TC_HANDSHAKE_SYNACK_MSG));
 	}
 
 	// return a connected sockfd
