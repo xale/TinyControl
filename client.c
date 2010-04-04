@@ -26,6 +26,7 @@ int writer(queue* q)
 	ssize_t bytes_written;
 	while (q->count > 0)
 	{
+		fprintf(stderr, "Writer's queue contains %d elements.\n", q->count);
 		pqe = pop_front(q);
 		fprintf(stderr, "Popped packet.\n");
 		bytes_written = write(STDOUT_FILENO, pqe->payload, pqe->payload_size);
