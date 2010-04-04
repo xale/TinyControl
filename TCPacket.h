@@ -10,13 +10,14 @@
 #include <stdint.h>
 
 // All field widths are measured in bytes
-#define SEQ_NUM_FIELD_WIDTH		4
-#define TIMESTAMP_FIELD_WIDTH	4
-#define RTT_FIELD_WIDTH			4
-#define MAX_PAYLOAD_SIZE		1000
-#define ELAPSED_T_FIELD_WIDTH	4
-#define RECV_RATE_FIELD_WIDTH	4
-#define LOSS_RATE_FIELD_WIDTH	4
+#define SEQ_NUM_FIELD_WIDTH			(4)
+#define TIMESTAMP_FIELD_WIDTH		(4)
+#define RTT_FIELD_WIDTH				(4)
+#define DATA_PACKET_HEADER_LENGTH	(SEQ_NUM_FIELD_WIDTH + TIMESTAMP_FIELD_WIDTH + RTT_FIELD_WIDTH)
+#define MAX_PAYLOAD_SIZE			(1000)
+#define ELAPSED_T_FIELD_WIDTH		(4)
+#define RECV_RATE_FIELD_WIDTH		(4)
+#define LOSS_RATE_FIELD_WIDTH		(4)
 
 typedef uint8_t payload_t[MAX_PAYLOAD_SIZE];
 typedef struct data_packet
