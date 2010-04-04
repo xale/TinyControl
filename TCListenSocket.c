@@ -32,9 +32,6 @@ TCListenSocketRef TCListenSocketCreate(const char* listenPort)
 	}
 	
 	// Bind the socket to the specified port
-	char* addr = TCPrintAddress(addressInfo.ai_addr);
-	printf("DEBUG: binding listen socket to %s\n", addr);
-	free(addr);
 	if (bind(newSocket, addressInfo.ai_addr, addressInfo.ai_addrlen) != 0)
 	{
 		perror("ERROR: bind failed in TCListenSocketCreate()");
@@ -96,10 +93,6 @@ TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const str
 				
 				// NULL-terminate the string
 				readBuffer[bytesRead] = 0;
-				
-				char* addrBuf = TCPrintAddress(&clientAddress);
-				printf("       received %zd bytes from %s: %s\n", bytesRead, addrBuf, readBuffer);
-				free(addrBuf);
 				
 				// Check that the message is a connection request
 				if (strncmp(readBuffer, TC_HANDSHAKE_SYN_MSG, TC_HANDSHAKE_BUFFER_SIZE) != 0)
