@@ -96,40 +96,48 @@ int reader(int sock, struct queue* q)
 	data_packet data;
 	feedback_packet feedback;
 	int received;
-	int flag;
+	int flag = 1;
+	int retval = 0;
 	uint32_t time = 0;
 	uint32_t last_time = 0;
 	uint32_t recv_rate = 0;
 	uint32_t loss_rate = 0;
-	memset(&data_buffer, 0, sizeof(data_packet));
-	received = recv(sock, &data_buffer, sizeof(data_packet), 0);
-	if (received <= 0)
+	while (flag)
 	{
-		fprintf(stderr, "No data read; error or connection close.");
-		return -1;
+		memset(&feedback_buffer, 0, FEEDBACK_PACKET_SIZE);
+		memset(&data_buffer, 0, DATA_PACKET_SIZE);
+		received = recv(sock, &data_buffer, DATA_PACKET_SIZE, 0);
+		if (received <= 0)
+		{
+			fprintf(stderr, "No data read; error or connection close.");
+			retval = -1;
+			break;
+		}
+		else if (received < DATA_PACKET_SIZE)
+		{
+			fprintf(stderr, "Short packet.");
+			flag = 0;
+		}
+		ntoh_data_packet(data_buffer, &data);
+
+		// FIXME:get time
+
+		feedback.timestamp = data.timestamp;
+		feedback.elapsed_time = last_time - time;
+		// FIXME:calculate receive rate
+		feedback.receive_rate = recv_rate;
+		// FIXME:calculate loss rate
+		feedback.loss_event_rate = loss_rate;
+		hton_feedback_packet(&feedback, feedback_buffer);
+
+		send(sock, feedback_buffer, FEEDBACK_PACKET_SIZE, 0);
+		fprintf(stderr, "Sent feedback packet.");
+
+		assert(received - 12 > 0);
+		push_back(q, received - 12, data.payload);
+		fprintf(stderr, "Pushed data to queue.");
 	}
-	else if (received < (int) sizeof(data_packet))
-	{
-		fprintf(stderr, "Short packet.");
-		flag = 0;
-	}
-	ntoh_data_packet(data_buffer, &data);
 	
-	// FIXME:get time
-
-	feedback.timestamp = data.timestamp;
-	feedback.elapsed_time = last_time - time;
-	// FIXME:calculate receive rate
-	feedback.receive_rate = recv_rate;
-	// FIXME:calculate loss rate
-	feedback.loss_event_rate = loss_rate;
-	hton_feedback_packet(&feedback, feedback_buffer);
-
-	send(sock, feedback_buffer, FEEDBACK_PACKET_SIZE, 0);
-
-	assert(received - 12 > 0);
-	push_back(q, received - 12, data.payload);
-	
-	return 0;
+	return retval;
 }
 
