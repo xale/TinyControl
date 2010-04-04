@@ -23,10 +23,13 @@ char* TCAddressToString(socket_address* address);
 // Returns the port number of the specified socket address
 uint16_t TCAddressGetPort(socket_address* address);
 
-// Subtract time 'y' from time 'x', storing the result in 'result'. Returns 1 if the difference is negative, otherwise 0.
-int time_subtract(time_delta* result, time_of_day* x, time_of_day* y);
-
 // Returns a printable string containing the information in the specified feedback packet
 char* TCPrintFeedbackPacket(feedback_packet* packet);
 
 void print_data_packet(struct data_packet *);
+
+// Subtract time 'y' from time 'x', storing the result in 'result'. Returns 1 if the difference is negative, otherwise 0.
+int time_subtract(time_delta* result, time_of_day* x, time_of_day* y);
+
+// Converts a struct timeval (containing seconds and microseconds) to a number of milliseconds
+uint32_t time_to_milliseconds(struct timeval* time);
