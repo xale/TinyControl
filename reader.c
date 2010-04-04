@@ -3,10 +3,13 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "TCTypes.h"
 #include "TCPacket.h"
 #include "queue.h"
+#include "TCUtilities.h"
 
 int lookup(char* address, char* port)
 {
@@ -18,34 +21,49 @@ int lookup(char* address, char* port)
 	int status = getaddrinfo(address, port, &hints, &result);
 	if (status != 0)
 	{
-		// failed to lookup address and port given
+		fprintf(stderr, "Failed to lookup address and port given\n");
 		// gai_strerror();
 		return -1;
 	}
 	int sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
 	if (sock == -1)
 	{
-		// failed to open socket
+		fprintf(stderr, "Failed to open socket.\n");
 		return -1;
 	}
 	status = sendto(sock, TC_HANDSHAKE_SYN_MSG, strlen(TC_HANDSHAKE_SYN_MSG), 0,
 			result->ai_addr, sizeof (struct sockaddr_storage));
-
+	// TODO: anticipate failure
+	{
+		char* str = TCPrintAddress(result->ai_addr);
+		fprintf(stderr, "Sent %d bytes of %zu to %s.\n",
+				status, strlen(TC_HANDSHAKE_SYN_MSG), str);
+		free(str);
+	}
 	struct sockaddr_storage server;
 	unsigned int fromlen;
 	char buf[TC_HANDSHAKE_BUFFER_SIZE+1];
-	status = recvfrom(sock, &buf, TC_HANDSHAKE_BUFFER_SIZE, 0,
+	status = recvfrom(sock, buf, TC_HANDSHAKE_BUFFER_SIZE, 0,
 			(struct sockaddr*) &server, &fromlen);
+	{
+		char* str = TCPrintAddress((struct sockaddr*) &server);
+		fprintf(stderr, "Received %d bytes: \"%s\" from %s.\n",
+				status, buf, str);
+		free(str);
+	}
 	if (!strncmp(buf, TC_HANDSHAKE_SYNACK_MSG, strlen(TC_HANDSHAKE_SYNACK_MSG)))
 	{
 		// not a synack
 		return -1;
 	}
-
 	status = connect(sock, (struct sockaddr*) &server, fromlen);
 	// TODO: anticipate failure
 
 	status = send(sock, TC_HANDSHAKE_ACK_MSG, strlen(TC_HANDSHAKE_ACK_MSG), 0);
+	{
+		fprintf(stderr, "Sent %d bytes of %zu.\n",
+				status, strlen(TC_HANDSHAKE_SYNACK_MSG));
+	}
 
 	// return a connected sockfd
 	return sock;
