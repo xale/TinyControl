@@ -22,6 +22,9 @@ void* TCServerSocketReadThread(void* serverSocket);
 // Manages the sending of queued outgoing data on the specified socket; run as a separate thread.
 void* TCServerSocketWriteThread(void* serverSocket);
 
+// Sends a data_packet over the specified socket; called by the write thread.
+int TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* packet, size_t payloadLength);
+
 TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, socket_address_length addressLength)
 {
 	// Attempt to finalize the connection with the client
@@ -80,6 +83,16 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 		TCServerSocketDestroy(serverSocket);
 		return NULL;
 	}
+	
+	/* FIXME: testing data transfer ================================================================================ */
+	data_packet testPacket;
+	memset(&(testPacket.payload), 0, MAX_PAYLOAD_SIZE);
+	testPacket.seq_number = htonl(0xDEADBEEF);
+	testPacket.timestamp = htonl(100);
+	testPacket.rtt = htonl(10);
+	
+	TCServerSocketSendPacket(serverSocket, &testPacket, MAX_PAYLOAD_SIZE);
+	/* FIXME: testing data transfer ================================================================================ */
 	
 	// If everything looks good so far, return the new socket, ready for writing
 	return serverSocket;
@@ -163,6 +176,13 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 				{
 					// Not an ACK; connection failed
 					fprintf(stderr, "ERROR: non-ACK response to handshake in TCServerSocketConnect()\n");
+					return -1;
+				}
+				
+				// connect() the socket, so that we don't have to call sendto() in future
+				if (connect(newSocket, connectAddress, addressLength) != 0)
+				{
+					perror("ERROR: could not connect socket in TCServerSocketConnect()");
 					return -1;
 				}
 				
@@ -262,6 +282,11 @@ void* TCServerSocketWriteThread(void* serverSocket)
 	// FIXME: WRITEME
 	
 	pthread_exit(NULL);
+}
+
+int TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* packet, size_t payloadLength)
+{
+	return send(serverSocket->sock, (void*)packet, (DATA_PACKET_HEADER_LENGTH + payloadLength), 0);
 }
 
 socket_address* TCServerSocketGetRemoteAddress(TCServerSocketRef serverSocket)
