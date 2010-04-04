@@ -95,9 +95,15 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 	}
 	
 	// Send a reply to the client host's connection request (automatically binds local socket)
-	if (sendto(newSocket, TC_HANDSHAKE_SYNACK_MSG, strlen(TC_HANDSHAKE_SYNACK_MSG), 0, connectAddress, addressLength) != 0)
+	ssize_t bytesWritten = sendto(newSocket, TC_HANDSHAKE_SYNACK_MSG, strlen(TC_HANDSHAKE_SYNACK_MSG), 0, connectAddress, addressLength);
+	if (bytesWritten < 0)
 	{
 		perror("ERROR: sendto failed in TCServerSocketConnect()");
+		return -1;
+	}
+	if (bytesWritten < (ssize_t)strlen(TC_HANDSHAKE_SYNACK_MSG))
+	{
+		printf("ERROR: unable to send full SYNACK message in TCServerSocketConnect()\n");
 		return -1;
 	}
 	
