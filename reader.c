@@ -107,6 +107,7 @@ int reader(int sock, struct queue* q)
 		memset(&feedback_buffer, 0, FEEDBACK_PACKET_SIZE);
 		memset(&data_buffer, 0, DATA_PACKET_SIZE);
 		received = recv(sock, &data_buffer, DATA_PACKET_SIZE, 0);
+		fprintf(stderr, "Received packet.\n");
 		if (received <= 0)
 		{
 			fprintf(stderr, "No data read; error or connection close.\n");
