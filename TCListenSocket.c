@@ -72,7 +72,7 @@ TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const str
 	FD_SET(listenSocket->sock, &readFDs);
 	
 	// Select on the socket, waiting for a client to send us a SYN request
-	struct timeval timeout = acceptTimeout;
+	time_delta timeout = acceptTimeout;
 	switch (select(listenSocket->sock + 1, &readFDs, NULL, NULL, &timeout))
 	{
 		case -1:
