@@ -64,6 +64,8 @@ int main(int argc, char** argv)
 			
 			// Free the server socket
 			TCServerSocketDestroy(serverSocket);
+			
+			printf("  Connection closed\n");
 		}
 	}
 	
