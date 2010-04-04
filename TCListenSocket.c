@@ -86,7 +86,7 @@ TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const str
 				// Attempt to read the incoming message, and determine its origin
 				char readBuffer[TC_HANDSHAKE_BUFFER_SIZE + 1];
 				socket_address clientAddress;
-				socket_address_length addressLength;
+				socket_address_length addressLength = sizeof(socket_address);
 				ssize_t bytesRead = recvfrom(listenSocket->sock, readBuffer, TC_HANDSHAKE_BUFFER_SIZE, 0, &clientAddress, &addressLength);
 				if (bytesRead < 0)
 				{
