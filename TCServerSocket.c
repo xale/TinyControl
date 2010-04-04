@@ -83,33 +83,6 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 		return NULL;
 	}
 	
-	/* FIXME: testing data transfer ================================================================================ */
-	data_packet testData;
-	memset(&(testData.payload), 0, MAX_PAYLOAD_SIZE);
-	testData.seq_number = htonl(0xDEADBEEF);
-	testData.timestamp = htonl(100);
-	testData.rtt = htonl(10);
-	
-	if (TCServerSocketSendPacket(serverSocket, &testData, (DATA_PACKET_HEADER_LENGTH + MAX_PAYLOAD_SIZE)) < 0)
-	{
-		perror("DEBUG: ERROR: error sending data packet in TCServerSocketCreate()");
-	}
-	/* FIXME: testing data transfer ================================================================================ */
-	
-	/* FIXME: testing feedback receiving =========================================================================== */
-	feedback_packet testFeedback;
-	if (TCServerSocketReceiveFeedback(serverSocket, &testFeedback) < 0)
-	{
-		perror("DEBUG: ERROR: error receiving feedback in TCServerSocketCreate()");
-	}
-	else
-	{
-		char* buf = TCPrintFeedbackPacket(&testFeedback);
-		printf("DEBUG: feedback packet received: %s\n", buf);
-		free(buf);
-	}
-	/* FIXME: testing feedback receiving =========================================================================== */
-	
 	// If everything looks good so far, return the new socket, ready for writing
 	return serverSocket;
 }
@@ -247,14 +220,13 @@ void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 
 void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 {
+	fprintf(stderr, "DEBUG: starting write\n");
 	bool writing = true;
 	while (writing)
 	{
-		// Sleep for one second
-		sleep(1);
-		
 		// Update the send rate
 		uint32_t bytesToSend = TCServerSocketGetSendRate(serverSocket);
+		fprintf(stderr, "       current send rate: %ud bytes per second\n", bytesToSend);
 		
 		// Write packets until we reach the send rate limit, or run out of data to send
 		data_packet packet;
@@ -262,10 +234,12 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 		{
 			// Read a packet's worth of data from the file
 			ssize_t bytesRead = read(file, &(packet.payload), MAX_PAYLOAD_SIZE);
+			fprintf(stderr, "       %zd bytes read from file\n", bytesRead);
 			
 			// If the read fails, abort sending immediately
 			if (bytesRead < 0)
 			{
+				perror("ERROR: read() failed in TCServerSocketSend()");
 				writing = false;
 				break;
 			}
@@ -283,10 +257,15 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 			
 			// Attempt to send the packet
 			ssize_t bytesWritten = TCServerSocketSendPacket(serverSocket, &packet, (DATA_PACKET_HEADER_LENGTH + bytesRead));
+			fprintf(stderr, "       %zd bytes written\n", bytesWritten);
 			
 			// If the send fails, abort sending immediately
 			if (bytesWritten < bytesRead)
 			{
+				if (bytesWritten < 0)
+					perror("ERROR: send() failed in TCServerSocketSendPacket()");
+				else
+					fprintf(stderr, "ERROR: incomplete send in TCServerSocketSendPacket(): %zd of %zd bytes", bytesWritten, bytesRead);
 				writing = false;
 				break;
 			}
@@ -294,6 +273,10 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 			// Add the bytes written to the total number of bytes sent during this write event
 			bytesSent += bytesWritten;
 		}
+		
+		// Sleep for one second before the next write event
+		fprintf(stderr, "       sleeping\n");
+		sleep(1);
 	}
 }
 
