@@ -24,13 +24,16 @@ void* TCServerSocketWriteThread(void* serverSocket);
 
 TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, socket_address_length addressLength)
 {
+	// Make a note of the time, for the initial RTT estimate
+	// FIXME: WRITEME
+	
 	// Attempt to finalize the connection with the client
 	socket_fd connectedSocket = TCServerSocketConnect(connectAddress, addressLength);
 	
 	// If the connection fails, bail
 	if (connectedSocket < 0)
 	{
-		printf("ERROR: conncetion failed in TCServerSocketCreate()\n");
+		printf("ERROR: connection failed in TCServerSocketCreate()\n");
 		return NULL;
 	}
 	
@@ -76,7 +79,7 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 		TCServerSocketDestroy(serverSocket);
 		return NULL;
 	}
-
+	
 	// If everything looks good so far, return the new socket, ready for writing
 	return serverSocket;
 }
@@ -112,7 +115,7 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 		case 0:
 			printf("ERROR: timed out waiting for ACK in TCServerSocketConnect()\n");
 			return -1;
-		
+			
 		default:
 			if (FD_ISSET(newSocket, &readFDs) != 0)
 			{

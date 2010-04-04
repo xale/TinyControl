@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <sys/time.h>
 #include "queue.h"
 #include "TCTypes.h"
 
@@ -24,6 +25,8 @@ typedef struct TCServerSocket
 	bool isReading;
 	pthread_t writeThread;
 	bool isWriting;
+	
+	struct timeval RTT;
 	
 	queue* writeQueue;
 } TCServerSocket;
