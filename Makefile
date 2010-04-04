@@ -22,7 +22,7 @@ debug: CFLAGS+=-g -O0
 debug: all
 
 .PHONY:profile
-profile: CFLAGS+=-pg -fprofile-arcs -ftest-coverage
+profile: CFLAGS+=-pg -g -fprofile-arcs -ftest-coverage
 profile: all
 
 .PHONY:clean
