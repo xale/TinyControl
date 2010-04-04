@@ -9,6 +9,8 @@
 #include "TCTypes.h"
 #include "TCPacket.h"
 
+struct data_packet;
+
 // Stores the result of getaddrinfo() with the appropriate options in 'result'; returns 0 on success, -1 on failure
 int TCGetAddressInfo(const char* hostname, const char* port, int flags, inet_address_info* result);
 
@@ -26,3 +28,5 @@ int time_subtract(time_delta* result, time_of_day* x, time_of_day* y);
 
 // Returns a printable string containing the information in the specified feedback packet
 char* TCPrintFeedbackPacket(feedback_packet* packet);
+
+void print_data_packet(struct data_packet *);

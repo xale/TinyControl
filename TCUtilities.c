@@ -14,6 +14,8 @@
 #include <sys/types.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+
+#include "TCPacket.h"
 #include "TCUtilities.h"
 
 int TCGetAddressInfo(const char* hostname, const char* port, int flags, inet_address_info* result)
@@ -124,4 +126,9 @@ char* TCPrintFeedbackPacket(feedback_packet* packet)
 	char* buf;
 	asprintf(&buf, "{timestamp=%d, elapsed_time=%d, receive_rate=%d, loss_event_rate=%d}", packet->timestamp, packet->elapsed_time, packet->receive_rate, packet->loss_event_rate);
 	return buf;
+}
+
+void print_data_packet(data_packet *data)
+{
+	fprintf(stderr, "seq = %u\nts = %u\nrtt = %u\n", data->seq_number, data->timestamp, data->rtt);
 }
