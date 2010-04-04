@@ -84,7 +84,7 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_address_length addressLength)
 {
 	// Attempt to create a UDP socket
-	socket_fd newSocket = socket(connectAddress->sa_family, SOCK_DGRAM, 0);
+	socket_fd newSocket = socket(AF_INET, SOCK_DGRAM, 0);
 	if (newSocket < 0)
 	{
 		perror("ERROR: socket creation failed in TCServerSocketConnect()");
