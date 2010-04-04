@@ -51,6 +51,11 @@ int push_back(queue* q, unsigned int payload_size, payload_t payload)
 	return 0;
 }
 
+unsigned int queue_count(queue* q)
+{
+	return q->count;
+}
+
 void free_queue(queue* q)
 {
 	for(queue_elem *elem = q->head, *next; elem != NULL;)
