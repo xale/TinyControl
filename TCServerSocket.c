@@ -230,7 +230,7 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 		
 		// Write packets until we reach the send rate limit, or run out of data to send
 		data_packet packet;
-		for (uint32_t bytesSent = 0; bytesSent < bytesToSend;)
+		for (uint32_t bytesSent = 0; writing && (bytesSent < bytesToSend);)
 		{
 			// Read a packet's worth of data from the file
 			ssize_t bytesRead = read(file, &(packet.payload), MAX_PAYLOAD_SIZE);
@@ -271,12 +271,15 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 			}
 			
 			// Add the bytes written to the total number of bytes sent during this write event
-			bytesSent += bytesWritten;
+			bytesSent += (bytesWritten - DATA_PACKET_HEADER_LENGTH);
 		}
 		
 		// Sleep for one second before the next write event
-		fprintf(stderr, "       sleeping\n");
-		sleep(1);
+		if (writing)
+		{
+			fprintf(stderr, "       sleeping\n");
+			sleep(1);
+		}
 	}
 }
 
