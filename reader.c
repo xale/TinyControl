@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "TCTypes.h"
 #include "TCPacket.h"
@@ -80,29 +81,54 @@ void ntoh_data_packet(uint8_t *buf, data_packet *data)
 	memcpy(data->payload, buf + 12, MAX_PAYLOAD_SIZE);
 }
 
+void hton_feedback_packet(feedback_packet *feedback, uint32_t *buf)
+{
+	buf[0] = htonl(feedback->timestamp);
+	buf[1] = htonl(feedback->elapsed_time);
+	buf[2] = htonl(feedback->receive_rate);
+	buf[3] = htonl(feedback->loss_event_rate);
+}
+
 int reader(int sock, struct queue* q)
 {
 	uint8_t data_buffer[sizeof(data_packet)];
+	uint32_t feedback_buffer[4];
 	data_packet data;
+	feedback_packet feedback;
 	int received;
 	int flag;
-	uint32_t time = -1;
-	uint32_t timetmp = -1;
+	uint32_t time = 0;
+	uint32_t last_time = 0;
+	uint32_t recv_rate = 0;
+	uint32_t loss_rate = 0;
 	memset(&data_buffer, 0, sizeof(data_packet));
 	received = recv(sock, &data_buffer, sizeof(data_packet), 0);
 	if (received <= 0)
 	{
-		// no data read; error or connection close.
+		fprintf(stderr, "No data read; error or connection close.");
 		return -1;
 	}
 	else if (received < (int) sizeof(data_packet))
 	{
-		// short packet
+		fprintf(stderr, "Short packet.");
 		flag = 0;
 	}
 	ntoh_data_packet(data_buffer, &data);
 	
-	// TODO: unfinished
+	// FIXME:get time
+
+	feedback.timestamp = data.timestamp;
+	feedback.elapsed_time = last_time - time;
+	// FIXME:calculate receive rate
+	feedback.receive_rate = recv_rate;
+	// FIXME:calculate loss rate
+	feedback.loss_event_rate = loss_rate;
+	hton_feedback_packet(&feedback, feedback_buffer);
+
+	send(sock, feedback_buffer, FEEDBACK_PACKET_SIZE, 0);
+
+	assert(received - 12 > 0);
+	push_back(q, received - 12, data.payload);
 	
 	return 0;
 }

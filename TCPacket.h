@@ -14,9 +14,11 @@
 #define TIMESTAMP_FIELD_WIDTH	4
 #define RTT_FIELD_WIDTH			4
 #define MAX_PAYLOAD_SIZE		1000
+#define DATA_PACKET_SIZE        1012
 #define ELAPSED_T_FIELD_WIDTH	4
 #define RECV_RATE_FIELD_WIDTH	4
 #define LOSS_RATE_FIELD_WIDTH	4
+#define FEEDBACK_PACKET_SIZE    32
 
 typedef uint8_t payload_t[MAX_PAYLOAD_SIZE];
 typedef struct data_packet
