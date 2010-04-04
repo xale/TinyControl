@@ -38,7 +38,7 @@ int push_back(queue* q, unsigned int payload_size, payload_t payload)
 	last->payload_size = payload_size;
 	memcpy(last->payload, payload, payload_size);
 	last->next = NULL;
-	if (q->tail == NULL)
+	if (q->tail == NULL || q->head == NULL)
 	{
 		q->head = q->tail = last;
 	}
