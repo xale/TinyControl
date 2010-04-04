@@ -19,3 +19,6 @@ char* TCAddressToString(socket_address* address);
 
 // Returns the port number of the specified socket address
 uint16_t TCAddressGetPort(socket_address* address);
+
+// Subtract time 'y' from time 'x', storing the result in 'result'. Returns 1 if the difference is negative, otherwise 0.
+int time_subtract(time_delta* result, time_of_day* x, time_of_day* y);
