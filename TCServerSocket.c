@@ -31,6 +31,9 @@ ssize_t TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* pa
 // Retrieves the current send rate for the server socket
 uint32_t TCServerSocketGetSendRate(TCServerSocketRef serverSocket);
 
+// Retrieves the current estimate for round-trip-time, in milliseconds
+uint32_t TCServerSocketGetRTT(TCServerSocketRef serverSocket);
+
 TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, socket_address_length addressLength)
 {
 	// Attempt to finalize the connection with the client
@@ -59,11 +62,24 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	memcpy(serverSocket->remoteAddress, connectAddress, addressLength);
 	serverSocket->remoteAddressLength = addressLength;
 	
-	// Copy the initial RTT
-	serverSocket->RTT = initialRTT;
+	// Initialize the rate-limiting data
+	// Initial round-trip-time
+	serverSocket->RTT = time_to_milliseconds(&initialRTT);
 	
-	// Set the initial send rate (one packet per RTT)
-	serverSocket->sendRate = MAX_PAYLOAD_SIZE;
+	// Initial send rate
+	if (serverSocket->RTT > 0)
+	{
+		serverSocket->sendRate = ((4 * MAX_PAYLOAD_SIZE) / serverSocket->RTT);
+		if (serverSocket->sendRate < MAX_PAYLOAD_SIZE)
+			serverSocket->sendRate = MAX_PAYLOAD_SIZE;
+	}
+	else
+	{
+		serverSocket->sendRate = UINT32_MAX;
+	}
+		
+	// Sequence number zero 
+	serverSocket->sequenceNumber = 0;
 	
 	// Create a mutex for the server socket object
 	if (pthread_mutex_init(&(serverSocket->mutex), NULL) != 0)
@@ -226,7 +242,7 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 	{
 		// Update the send rate
 		uint32_t bytesToSend = TCServerSocketGetSendRate(serverSocket);
-		fprintf(stderr, "       current send rate: %ud bytes per second\n", bytesToSend);
+		fprintf(stderr, "DEBUG: current send rate: %u bytes per second\n", bytesToSend);
 		
 		// Write packets until we reach the send rate limit, or run out of data to send
 		data_packet packet;
@@ -234,7 +250,7 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 		{
 			// Read a packet's worth of data from the file
 			ssize_t bytesRead = read(file, &(packet.payload), MAX_PAYLOAD_SIZE);
-			fprintf(stderr, "       %zd bytes read from file\n", bytesRead);
+			fprintf(stderr, "DEBUG: %zd bytes read from file\n", bytesRead);
 			
 			// If the read fails, abort sending immediately
 			if (bytesRead < 0)
@@ -251,13 +267,20 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 			}
 			
 			// Fill the other fields of the packet
-			packet.seq_number = 0;	// FIXME: temporary
-			packet.timestamp = 0;	// FIXME: temporary
-			packet.rtt = 0;			// FIXME: temporary
+			// Sequence number
+			packet.seq_number = serverSocket->sequenceNumber++;
+			
+			// Timestamp
+			time_of_day timeNow;
+			gettimeofday(&timeNow, NULL);
+			packet.timestamp = time_to_milliseconds(&timeNow);
+			
+			// Round-trip-time
+			packet.rtt = TCServerSocketGetRTT(serverSocket);
 			
 			// Attempt to send the packet
 			ssize_t bytesWritten = TCServerSocketSendPacket(serverSocket, &packet, (DATA_PACKET_HEADER_LENGTH + bytesRead));
-			fprintf(stderr, "       %zd bytes written\n", bytesWritten);
+			fprintf(stderr, "DEBUG: %zd bytes written\n", bytesWritten);
 			
 			// If the send fails, abort sending immediately
 			if (bytesWritten < bytesRead)
@@ -277,7 +300,7 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 		// Sleep for one second before the next write event
 		if (writing)
 		{
-			fprintf(stderr, "       sleeping\n");
+			fprintf(stderr, "DEBUG: sleeping\n");
 			sleep(1);
 		}
 	}
@@ -288,8 +311,14 @@ ssize_t TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* pa
 	return send(serverSocket->sock, (void*)packet, packetLength, 0);
 }
 
-void* TCServerSocketReadThread(void* serverSocket)
+void* TCServerSocketReadThread(void* s)
 {
+	TCServerSocketRef serverSocket = (TCServerSocketRef)s;
+	
+	// Set the initial "no feedback" timeout (2 seconds from now)
+	gettimeofday(&(serverSocket->noFeedbackTimeout), NULL);
+	serverSocket->noFeedbackTimeout.tv_sec += 2;
+	
 	// FIXME: WRITEME
 	
 	pthread_exit(NULL);
@@ -318,6 +347,15 @@ uint32_t TCServerSocketGetSendRate(TCServerSocketRef serverSocket)
 	rate = serverSocket->sendRate;
 	pthread_mutex_unlock(&(serverSocket->mutex));
 	return rate;
+}
+
+uint32_t TCServerSocketGetRTT(TCServerSocketRef serverSocket)
+{
+	uint32_t RTT;
+	pthread_mutex_lock(&(serverSocket->mutex));
+	RTT = serverSocket->RTT;
+	pthread_mutex_unlock(&(serverSocket->mutex));
+	return RTT;
 }
 
 socket_address* TCServerSocketGetRemoteAddress(TCServerSocketRef serverSocket)

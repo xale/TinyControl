@@ -25,7 +25,9 @@ typedef struct TCServerSocket
 	bool isReading;
 	
 	uint32_t sendRate;
-	time_delta RTT;
+	uint32_t RTT;
+	uint32_t sequenceNumber;
+	time_delta noFeedbackTimeout;
 } TCServerSocket;
 
 typedef TCServerSocket* TCServerSocketRef;
