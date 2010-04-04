@@ -18,8 +18,10 @@ typedef struct sockaddr_in			inet_socket_address;
 typedef struct sockaddr_in6			inet6_socket_address;
 typedef socklen_t					socket_address_length;
 typedef int 						socket_fd;
+typedef struct timeval				time_of_day;
+typedef struct timeval				time_delta;
 
-extern const struct timeval TC_HANDSHAKE_TIMEOUT;
+extern const time_delta TC_HANDSHAKE_TIMEOUT;
 extern const size_t TC_HANDSHAKE_BUFFER_SIZE;
 extern const char* TC_HANDSHAKE_SYN_MSG;
 extern const char* TC_HANDSHAKE_SYNACK_MSG;

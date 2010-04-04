@@ -14,7 +14,7 @@
 
 // Private "methods"
 // Attempts to perform the second and third stages of a connection handshake; returns a socket file descriptor connected to the client if successful, or -1 in the event of an error.
-socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_address_length addressLength);
+socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_address_length addressLength, time_delta* initialRTT);
 
 // Manages the congestion feedback/flow control of the specified socket; run as a separate thread.
 void* TCServerSocketReadThread(void* serverSocket);
@@ -22,18 +22,19 @@ void* TCServerSocketReadThread(void* serverSocket);
 // Manages the sending of queued outgoing data on the specified socket; run as a separate thread.
 void* TCServerSocketWriteThread(void* serverSocket);
 
+// Sends a data_packet over the specified socket; called by the write thread.
+int TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* packet, size_t payloadLength);
+
 TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, socket_address_length addressLength)
 {
-	// Make a note of the time, for the initial RTT estimate
-	// FIXME: WRITEME
-	
 	// Attempt to finalize the connection with the client
-	socket_fd connectedSocket = TCServerSocketConnect(connectAddress, addressLength);
+	time_delta initialRTT;
+	socket_fd connectedSocket = TCServerSocketConnect(connectAddress, addressLength, &initialRTT);
 	
 	// If the connection fails, bail
 	if (connectedSocket < 0)
 	{
-		printf("       connection failed in TCServerSocketCreate()\n");
+		fprintf(stderr, "       connection failed in TCServerSocketCreate()\n");
 		return NULL;
 	}
 	
@@ -52,6 +53,9 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	memcpy(serverSocket->remoteAddress, connectAddress, addressLength);
 	serverSocket->remoteAddressLength = addressLength;
 	
+	// Copy the initial RTT
+	serverSocket->RTT = initialRTT;
+	
 	// Create a queue for pending writes to the socket
 	serverSocket->writeQueue = init_queue();
 	if (serverSocket->writeQueue == NULL)
@@ -62,7 +66,7 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	}
 	
 	// Create a mutex for the server socket object
-	if (pthread_mutex_init(serverSocket->mutex, NULL) != 0)
+	if (pthread_mutex_init(&(serverSocket->mutex), NULL) != 0)
 	{
 		perror("ERROR: mutex_init failed in TCServerSocketCreate()");
 		TCServerSocketDestroy(serverSocket);
@@ -80,17 +84,35 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 		return NULL;
 	}
 	
+	/* FIXME: testing data transfer ================================================================================ */
+	data_packet testPacket;
+	memset(&(testPacket.payload), 0, MAX_PAYLOAD_SIZE);
+	testPacket.seq_number = htonl(0xDEADBEEF);
+	testPacket.timestamp = htonl(100);
+	testPacket.rtt = htonl(10);
+	
+	TCServerSocketSendPacket(serverSocket, &testPacket, MAX_PAYLOAD_SIZE);
+	/* FIXME: testing data transfer ================================================================================ */
+	
 	// If everything looks good so far, return the new socket, ready for writing
 	return serverSocket;
 }
 
-socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_address_length addressLength)
+socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_address_length addressLength, time_delta* initialRTT)
 {
 	// Attempt to create a UDP socket
 	socket_fd newSocket = socket(connectAddress->sa_family, SOCK_DGRAM, 0);
 	if (newSocket < 0)
 	{
 		perror("ERROR: socket creation failed in TCServerSocketConnect()");
+		return -1;
+	}
+	
+	// Make note of the time, for the initial RTT calculation
+	time_of_day timeSYNACK;
+	if (gettimeofday(&timeSYNACK, NULL) != 0)
+	{
+		perror("ERROR: cannot get time of SYNACK in TCServerSocketConnect()");
 		return -1;
 	}
 	
@@ -103,7 +125,7 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 	}
 	if (bytesWritten < (ssize_t)strlen(TC_HANDSHAKE_SYNACK_MSG))
 	{
-		printf("ERROR: unable to send full SYNACK message in TCServerSocketConnect()\n");
+		fprintf(stderr, "ERROR: unable to send full SYNACK message in TCServerSocketConnect()\n");
 		return -1;
 	}
 	
@@ -115,7 +137,7 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 	FD_SET(newSocket, &readFDs);
 	
 	// Select on the socket, waiting for the client to ACK the connection
-	struct timeval timeout = TC_HANDSHAKE_TIMEOUT;
+	time_delta timeout = TC_HANDSHAKE_TIMEOUT;
 	switch (select(newSocket + 1, &readFDs, NULL, NULL, &timeout))
 	{
 		case -1:
@@ -123,7 +145,7 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 			return -1;
 			
 		case 0:
-			printf("ERROR: timed out waiting for ACK in TCServerSocketConnect()\n");
+			fprintf(stderr, "ERROR: timed out waiting for ACK in TCServerSocketConnect()\n");
 			return -1;
 			
 		default:
@@ -136,7 +158,15 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 				{
 					perror("ERROR: recv failed in TCServerSocketConnect()");
 					return -1;
-				}	
+				}
+				
+				// Note the time
+				time_of_day timeACK;
+				if (gettimeofday(&timeACK, NULL) != 0)
+				{
+					perror("ERROR: cannot get time of ACK in TCServerSocketConnect()");
+					return -1;
+				}
 				
 				// NULL-terminate the message
 				readBuffer[bytesRead] = 0;
@@ -145,14 +175,24 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 				if (strncmp(readBuffer, TC_HANDSHAKE_ACK_MSG, TC_HANDSHAKE_BUFFER_SIZE) != 0)
 				{
 					// Not an ACK; connection failed
-					printf("ERROR: non-ACK response to handshake in TCServerSocketConnect()\n");
+					fprintf(stderr, "ERROR: non-ACK response to handshake in TCServerSocketConnect()\n");
 					return -1;
 				}
+				
+				// connect() the socket, so that we don't have to call sendto() in future
+				if (connect(newSocket, connectAddress, addressLength) != 0)
+				{
+					perror("ERROR: could not connect socket in TCServerSocketConnect()");
+					return -1;
+				}
+				
+				// Calculate the round-trip-time
+				time_subtract(initialRTT, &timeACK, &timeSYNACK);
 			}
 			else
 			{
 				// Should never happen...
-				printf("ERROR: client socket file descriptor not ready for reading after successful select() operation\n");
+				fprintf(stderr, "ERROR: client socket file descriptor not ready for reading after successful select() operation\n");
 				return -1;
 			}
 			break;
@@ -168,7 +208,7 @@ void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 		return;
 	
 	// Acquire mutex
-	pthread_mutex_lock(serverSocket->mutex);
+	pthread_mutex_lock(&(serverSocket->mutex));
 	
 	// Shut down the read and write threads
 	serverSocket->isReading = false;
@@ -179,10 +219,10 @@ void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 	pthread_join(serverSocket->writeThread, NULL);
 	
 	// Release mutex
-	pthread_mutex_unlock(serverSocket->mutex);
+	pthread_mutex_unlock(&(serverSocket->mutex));
 	
 	// Free the mutex
-	pthread_mutex_destroy(serverSocket->mutex);
+	pthread_mutex_destroy(&(serverSocket->mutex));
 	
 	// Free the write queue
 	free_queue(serverSocket->writeQueue);
@@ -196,13 +236,13 @@ void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 
 void TCServerSocketSend(TCServerSocketRef serverSocket, const char* data, size_t dataLength)
 {
-	pthread_mutex_lock(serverSocket->mutex);
+	pthread_mutex_lock(&(serverSocket->mutex));
 	
 	// Check that the socket is not already writing data
 	if (serverSocket->isWriting)
 	{
-		pthread_mutex_unlock(serverSocket->mutex);
-		printf("WARNING: attempt to write to server socket with queued data");
+		pthread_mutex_unlock(&(serverSocket->mutex));
+		fprintf(stderr, "WARNING: attempt to write to server socket with queued data");
 		return;
 	}
 	
@@ -227,7 +267,7 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, const char* data, size_t
 	// Start the server writing
 	serverSocket->isWriting = true;
 	
-	pthread_mutex_unlock(serverSocket->mutex);
+	pthread_mutex_unlock(&(serverSocket->mutex));
 }
 
 void* TCServerSocketReadThread(void* serverSocket)
@@ -242,6 +282,11 @@ void* TCServerSocketWriteThread(void* serverSocket)
 	// FIXME: WRITEME
 	
 	pthread_exit(NULL);
+}
+
+int TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* packet, size_t payloadLength)
+{
+	return send(serverSocket->sock, (void*)packet, (DATA_PACKET_HEADER_LENGTH + payloadLength), 0);
 }
 
 socket_address* TCServerSocketGetRemoteAddress(TCServerSocketRef serverSocket)

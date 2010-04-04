@@ -20,13 +20,13 @@ typedef struct TCServerSocket
 	socket_address* remoteAddress;
 	socket_address_length remoteAddressLength;
 	
-	pthread_mutex_t* mutex;
+	pthread_mutex_t mutex;
 	pthread_t readThread;
 	bool isReading;
 	pthread_t writeThread;
 	bool isWriting;
 	
-	struct timeval RTT;
+	time_delta RTT;
 	
 	queue* writeQueue;
 } TCServerSocket;

@@ -72,7 +72,7 @@ TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const str
 	FD_SET(listenSocket->sock, &readFDs);
 	
 	// Select on the socket, waiting for a client to send us a SYN request
-	struct timeval timeout = acceptTimeout;
+	time_delta timeout = acceptTimeout;
 	switch (select(listenSocket->sock + 1, &readFDs, NULL, NULL, &timeout))
 	{
 		case -1:
@@ -105,7 +105,7 @@ TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const str
 				if (strncmp(readBuffer, TC_HANDSHAKE_SYN_MSG, TC_HANDSHAKE_BUFFER_SIZE) != 0)
 				{
 					// Should never happen...
-					printf("ERROR: listen socket received non-SYN message from incoming client\n");
+					fprintf(stderr, "ERROR: listen socket received non-SYN message from incoming client\n");
 					break;
 				}
 				
@@ -115,7 +115,7 @@ TCServerSocketRef TCListenSocketAccept(TCListenSocketRef listenSocket, const str
 			else
 			{
 				// Should never happen...
-				printf("ERROR: listen socket file descriptor not ready for reading after successful select() operation\n");
+				fprintf(stderr, "ERROR: listen socket file descriptor not ready for reading after successful select() operation\n");
 			}
 			break;
 	}
