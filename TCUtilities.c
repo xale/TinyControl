@@ -103,9 +103,11 @@ char* TCPrintFeedbackPacket(feedback_packet* packet)
 	return buf;
 }
 
-void print_data_packet(data_packet *data)
+char* TCPrintDataPacket(data_packet *data)
 {
-	fprintf(stderr, "seq = %u\nts = %u\nrtt = %u\n", data->seq_number, data->timestamp, data->rtt);
+	char* buf;
+	asprintf(&buf, "{seq=%d, timestamp=%d, rtt=%d}", data->seq_number, data->timestamp, data->rtt);
+	return buf;
 }
 
 int time_subtract(time_delta* result, time_of_day* x, time_of_day* y)
