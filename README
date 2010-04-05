@@ -8,6 +8,34 @@ BUILDING:
 	
 RUNNING:
 	start the server with './server <listen port> <filename>'
-	the server will listen on the specified port for incoming connections, and serve the specified file to connecting clients
+	the server will listen on the specified port for incoming connections, and serve the specified file to connecting clients, writing information about each packet sent to STDOUT
 	run the client with './client <hostname/IP> <port>'
-	the client will read data from the server at the specified host and port, and output it to stdout
+	the client will read data from the server at the specified host and port, and output it to STDOUT
+
+WHAT WORKS:
+	server:
+		- starts up, binds to specified listening port
+		- accepts incoming connections from clients
+			* performs a handshake
+			* makes an initial estimate of round-trip-time
+		- reads file from disk
+		- sends file to client at initially-calculated rate
+		- receives feedback from client
+		- nofeedback timer expires after 2 seconds
+		- writes data about each packet sent to STDOUT
+		
+	client:
+		- starts up, connects to server at specified address
+			* performs a handshake
+		- receives file from server
+		- writes file to STDOUT
+		- sends feedback packets to server
+		
+WHAT DOESN'T WORK:
+	server:
+		- does not adjust send rate based on feedback
+		- does not adjust send rate based on nofeedback timeout
+		- does not adjust nofeedback timeout
+		
+	client:
+		
