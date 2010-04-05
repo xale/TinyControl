@@ -23,6 +23,7 @@ WHAT WORKS:
 		- receives feedback from client
 		- nofeedback timer expires after 2 seconds
 		- writes data about each packet sent to STDOUT
+		- does not fork()-bomb machine
 		
 	client:
 		- starts up, connects to server at specified address
