@@ -248,76 +248,92 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 	bool writing = true;
 	while (writing && TCServerSocketIsReading(serverSocket))
 	{
-		// Update the send rate
-		uint32_t bytesToSend = TCServerSocketGetSendRate(serverSocket);
-		fprintf(stderr, "DEBUG: current send rate: %u bytes per second\n", bytesToSend);
-		
-		// Write packets until we reach the send rate limit, or run out of data to send
+		// Read a packet's worth of data from the file
 		data_packet packet;
-		for (uint32_t bytesSent = 0; writing && TCServerSocketIsReading(serverSocket) && (bytesSent < bytesToSend);)
+		ssize_t bytesRead = read(file, &(packet.payload), MAX_PAYLOAD_SIZE);
+		fprintf(stderr, "DEBUG: %zd bytes read from file\n", bytesRead);
+		
+		// If the read fails, abort sending immediately
+		if (bytesRead < 0)
 		{
-			// Read a packet's worth of data from the file
-			ssize_t bytesRead = read(file, &(packet.payload), MAX_PAYLOAD_SIZE);
-			fprintf(stderr, "DEBUG: %zd bytes read from file\n", bytesRead);
-			
-			// If the read fails, abort sending immediately
-			if (bytesRead < 0)
-			{
-				perror("ERROR: read() failed in TCServerSocketSend()");
-				writing = false;
-				break;
-			}
-			
-			// If the end of the file has been reached, stop sending after this packet
-			if (bytesRead < MAX_PAYLOAD_SIZE)
-			{
-				writing = false;
-			}
-			
-			// Fill the other fields of the packet
-			// Sequence number
-			packet.seq_number = htonl(serverSocket->sequenceNumber);
-			serverSocket->sequenceNumber++;
-			
-			// Timestamp
-			time_of_day timeNow;
-			gettimeofday(&timeNow, NULL);
-			packet.timestamp = htonl(time_to_milliseconds(&timeNow));
-			
-			// Round-trip-time
-			packet.rtt = htonl(TCServerSocketGetRTT(serverSocket));
-			
-			// Attempt to send the packet
-			ssize_t bytesWritten = TCServerSocketSendPacket(serverSocket, &packet, (DATA_PACKET_HEADER_LENGTH + bytesRead));
-			fprintf(stderr, "DEBUG: %zd bytes written\n", bytesWritten);
-			
-			// If the send fails, abort sending immediately
-			if (bytesWritten < bytesRead)
-			{
-				if (bytesWritten < 0)
-					perror("ERROR: send() failed in TCServerSocketSendPacket()");
-				else
-					fprintf(stderr, "ERROR: incomplete send in TCServerSocketSendPacket(): %zd of %zd bytes", bytesWritten, bytesRead);
-				writing = false;
-				break;
-			}
-			
-			// Add the bytes written to the total number of bytes sent during this write event
-			bytesSent += (bytesWritten - DATA_PACKET_HEADER_LENGTH);
+			perror("ERROR: read() failed in TCServerSocketSend()");
+			writing = false;
+			break;
 		}
 		
-		// Sleep for one second before the next write event
+		// If the end of the file has been reached, stop sending after this packet
+		if (bytesRead < MAX_PAYLOAD_SIZE)
+		{
+			writing = false;
+		}
+		
+		// Fill the other fields of the packet
+		// Sequence number
+		packet.seq_number = serverSocket->sequenceNumber;
+		serverSocket->sequenceNumber++;
+		
+		// Timestamp
+		time_of_day timeNow;
+		gettimeofday(&timeNow, NULL);
+		packet.timestamp = time_to_milliseconds(&timeNow);
+		
+		// Round-trip-time
+		packet.rtt = TCServerSocketGetRTT(serverSocket);
+		
+		// Attempt to send the packet
+		char* buf = TCPrintDataPacket(&packet);
+		fprintf(stderr, "DEBUG: sending packet: %s\n", buf);
+		free(buf);
+		ssize_t bytesWritten = TCServerSocketSendPacket(serverSocket, &packet, bytesRead);
+		fprintf(stderr, "DEBUG: %zd bytes written\n", bytesWritten);
+		
+		// If the send fails, abort sending immediately
+		if (bytesWritten < bytesRead)
+		{
+			if (bytesWritten < 0)
+				perror("ERROR: send() failed in TCServerSocketSendPacket()");
+			else
+				fprintf(stderr, "ERROR: incomplete send in TCServerSocketSendPacket(): %zd of %zd bytes", bytesWritten, bytesRead);
+			writing = false;
+			break;
+		}
+		
+		// Update the send rate
+		uint32_t sendRate = TCServerSocketGetSendRate(serverSocket);
+		fprintf(stderr, "DEBUG: current send rate: %u bytes per second\n", sendRate);
+		
+		// Sleep until the next write event
 		if (writing && TCServerSocketIsReading(serverSocket))
 		{
-			fprintf(stderr, "DEBUG: sleeping\n");
-			sleep(1);
+			uint32_t msecToSleep = MAX_PAYLOAD_SIZE / (1000 * sendRate);
+			fprintf(stderr, "DEBUG: sleeping for %d milliseconds\n", msecToSleep);
+			usleep(1000 * msecToSleep);
 		}
 	}
 }
 
-ssize_t TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* packet, size_t packetLength)
+ssize_t TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* packet, size_t payloadLength)
 {
-	return send(serverSocket->sock, (void*)packet, packetLength, 0);
+	// Create a buffer, and load it with the fields from the data packet struct in network byte-order
+	char buffer[DATA_PACKET_HEADER_LENGTH + payloadLength];
+	
+	// Sequence number
+	uint32_t field = htonl(packet->seq_number);
+	memcpy(buffer, &field, SEQ_NUM_FIELD_WIDTH);
+	
+	// Timestamp
+	field = htonl(packet->timestamp);
+	memcpy((buffer + SEQ_NUM_FIELD_WIDTH), &field, TIMESTAMP_FIELD_WIDTH);
+	
+	// RTT
+	field = htonl(packet->rtt);
+	memcpy((buffer + SEQ_NUM_FIELD_WIDTH + TIMESTAMP_FIELD_WIDTH), &field, RTT_FIELD_WIDTH);
+	
+	// Payload
+	memcpy((buffer + DATA_PACKET_HEADER_LENGTH), &(packet->payload), payloadLength);
+	
+	// Send the packet
+	return send(serverSocket->sock, buffer, (DATA_PACKET_HEADER_LENGTH + payloadLength), 0);
 }
 
 void* TCServerSocketReadThread(void* s)
@@ -333,11 +349,8 @@ void* TCServerSocketReadThread(void* s)
 		FD_SET(serverSocket->sock, &readFDs);
 		
 		// Set the "no feedback" timeout
-		gettimeofday(&timeout, NULL);
-		timeout.tv_sec += (serverSocket->feedbackTimeout / 1000);
-		timeout.tv_usec += (serverSocket->feedbackTimeout % 1000);
-		timeout.tv_sec += (timeout.tv_usec / 1000000);
-		timeout.tv_usec = (timeout.tv_usec % 1000000);
+		timeout.tv_sec = (serverSocket->feedbackTimeout / 1000);
+		timeout.tv_usec = (serverSocket->feedbackTimeout % 1000) * 1000;
 		
 		// Wait for data on the socket
 		switch(select((serverSocket->sock + 1), &readFDs, NULL, NULL, &timeout))
