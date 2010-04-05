@@ -77,9 +77,9 @@ int lookup(char* address, char* port)
 
 void ntoh_data_packet(uint8_t *buf, data_packet *data)
 {
-	data->seq_number = ntohl((uint32_t) *buf);
-	data->timestamp  = ntohl((uint32_t) *(buf + 4));
-	data->rtt		 = ntohl((uint32_t) *(buf + 8));
+	data->seq_number = ntohl(*(uint32_t*) buf);
+	data->timestamp  = ntohl(*(uint32_t*) (buf + 4));
+	data->rtt		 = ntohl(*(uint32_t*) (buf + 8));
 	memcpy(data->payload, buf + 12, MAX_PAYLOAD_SIZE);
 }
 
