@@ -133,6 +133,13 @@ int time_subtract(time_delta* result, time_of_day* x, time_of_day* y)
 	return (x->tv_sec < y->tv_sec);
 }
 
+uint32_t get_time_in_milliseconds()
+{
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	return time_to_milliseconds(&tv);
+}
+
 uint32_t time_to_milliseconds(struct timeval* time)
 {
 	return (time->tv_sec * 1000) + (time->tv_usec / 1000);

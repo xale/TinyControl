@@ -2,6 +2,7 @@
 #define QUEUE_H
 
 #include "TCPacket.h"
+#include "pthread.h"
 
 typedef struct queue_elem
 {
@@ -15,6 +16,8 @@ typedef struct queue
 	struct queue_elem* head;
 	struct queue_elem* tail;
 	unsigned int count;
+	pthread_mutex_t empty_lock;
+	pthread_cond_t empty;
 } queue;
 
 queue* init_queue(void);
