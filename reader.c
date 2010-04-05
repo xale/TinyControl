@@ -160,6 +160,7 @@ int reader(int sock, struct queue* q)
 			flag = 0;
 		}
 		ntoh_data_packet(data_buffer, &data);
+		msecs = data.rtt;
 		char* buf = TCPrintDataPacket(&data);
 		fprintf(stderr, "%s\n", buf);
 		free(buf);
