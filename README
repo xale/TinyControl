@@ -1,0 +1,13 @@
+Alex Heinz and Alex Rozenshteyn
+TinyControl Protocol
+600.344 Computer Network Fundamentals
+Spring 2010
+
+BUILDING:
+	run 'make' in the root directory with the source files
+	
+RUNNING:
+	start the server with './server <listen port> <filename>'
+	the server will listen on the specified port for incoming connections, and serve the specified file to connecting clients
+	run the client with './client <hostname/IP> <port>'
+	the client will read data from the server at the specified host and port, and output it to stdout
