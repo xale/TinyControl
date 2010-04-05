@@ -31,6 +31,8 @@ WHAT WORKS:
 		- receives file from server
 		- writes file to STDOUT
 		- sends feedback packets to server
+		- calculates and sends elapsed time
+		- has a feedback timer
 		
 WHAT DOESN'T WORK:
 	server:
@@ -39,4 +41,5 @@ WHAT DOESN'T WORK:
 		- does not adjust nofeedback timeout
 		
 	client:
-		
+		- does not calculate loss events
+		- does not calculate receive rate
