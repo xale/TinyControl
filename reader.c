@@ -12,6 +12,8 @@
 #include "queue.h"
 #include "TCUtilities.h"
 
+static int feedback_timer_expired = 1;
+
 int lookup(char* address, char* port)
 {
 	struct addrinfo hints;
@@ -89,6 +91,31 @@ void hton_feedback_packet(feedback_packet *feedback, uint32_t *buf)
 	buf[3] = htonl(feedback->loss_event_rate);
 }
 
+void *run_timer(void* argv)
+{
+	long msec = *(long*) argv;
+	struct timespec ts = { .tv_sec = msec/1000, .tv_nsec = 1000*(msec % 1000)};
+	nanosleep(&ts, NULL);
+	feedback_timer_expired = 1;
+	return NULL;
+}
+
+void feedback_timer(long *msec, pthread_t *tid)
+{
+	feedback_timer_expired = 0;
+	pthread_create(tid, NULL, run_timer, msec);
+}
+
+void send_feedback_packet(int sock, void *buf)
+{
+	if (feedback_timer_expired == 0)
+	{
+		return;
+	}
+	send(sock, buf, FEEDBACK_PACKET_SIZE, 0);
+	fprintf(stderr, "Sent feedback packet.\n");
+}
+
 int reader(int sock, struct queue* q)
 {
 	uint8_t data_buffer[sizeof(data_packet)];
@@ -102,6 +129,8 @@ int reader(int sock, struct queue* q)
 	uint32_t last_time = 0;
 	uint32_t recv_rate = 0;
 	uint32_t loss_rate = 0;
+	long msecs = 1000;
+	pthread_t feedback_timer_tid;
 	while (flag)
 	{
 		memset(&feedback_buffer, 0, FEEDBACK_PACKET_SIZE);
@@ -143,8 +172,8 @@ int reader(int sock, struct queue* q)
 		feedback.loss_event_rate = loss_rate;
 		hton_feedback_packet(&feedback, feedback_buffer);
 
-		send(sock, feedback_buffer, FEEDBACK_PACKET_SIZE, 0);
-		fprintf(stderr, "Sent feedback packet.\n");
+		send_feedback_packet(sock, feedback_buffer);
+		feedback_timer(&msecs, &feedback_timer_tid);
 
 		push_back(q, received - DATA_PACKET_HEADER_LENGTH, data.payload);
 		fprintf(stderr, "Pushed data to queue.\n");
