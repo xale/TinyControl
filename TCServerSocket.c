@@ -405,10 +405,10 @@ ssize_t TCServerSocketReceiveFeedback(TCServerSocketRef serverSocket, feedback_p
 	
 	if (bytesRead == FEEDBACK_PACKET_SIZE)
 	{
-		packet->timestamp = ntohl((uint32_t)(*readBuffer));
-		packet->elapsed_time = ntohl((uint32_t)(*(readBuffer + TIMESTAMP_FIELD_WIDTH)));
-		packet->receive_rate = ntohl((uint32_t)(*(readBuffer + TIMESTAMP_FIELD_WIDTH + ELAPSED_T_FIELD_WIDTH)));
-		packet->loss_event_rate = ntohl((uint32_t)(*(readBuffer + TIMESTAMP_FIELD_WIDTH + ELAPSED_T_FIELD_WIDTH + RECV_RATE_FIELD_WIDTH)));
+		packet->timestamp = ntohl(*((uint32_t*)readBuffer));
+		packet->elapsed_time = ntohl(*((uint32_t*)(readBuffer + TIMESTAMP_FIELD_WIDTH)));
+		packet->receive_rate = ntohl(*((uint32_t*)(readBuffer + TIMESTAMP_FIELD_WIDTH + ELAPSED_T_FIELD_WIDTH)));
+		packet->loss_event_rate = ntohl(*((uint32_t*)(readBuffer + TIMESTAMP_FIELD_WIDTH + ELAPSED_T_FIELD_WIDTH + RECV_RATE_FIELD_WIDTH)));
 	}
 	
 	return bytesRead;
