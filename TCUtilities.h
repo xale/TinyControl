@@ -33,3 +33,5 @@ int time_subtract(time_delta* result, time_of_day* x, time_of_day* y);
 
 // Converts a struct timeval (containing seconds and microseconds) to a number of milliseconds
 uint32_t time_to_milliseconds(struct timeval* time);
+
+uint32_t get_time_in_milliseconds();

@@ -148,6 +148,7 @@ int reader(int sock, struct queue* q)
 
 		push_back(q, received - DATA_PACKET_HEADER_LENGTH, data.payload);
 		fprintf(stderr, "Pushed data to queue.\n");
+		fprintf(stderr, "Reader's queue contains %d elements.\n", q->count);
 	}
 	
 	return retval;
