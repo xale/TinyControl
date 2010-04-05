@@ -96,6 +96,18 @@ uint16_t TCAddressGetPort(socket_address* address)
 	return 0;
 }
 
+char* TCPrintFeedbackPacket(feedback_packet* packet)
+{
+	char* buf;
+	asprintf(&buf, "{timestamp=%d, elapsed_time=%d, receive_rate=%d, loss_event_rate=%d}", packet->timestamp, packet->elapsed_time, packet->receive_rate, packet->loss_event_rate);
+	return buf;
+}
+
+void print_data_packet(data_packet *data)
+{
+	fprintf(stderr, "seq = %u\nts = %u\nrtt = %u\n", data->seq_number, data->timestamp, data->rtt);
+}
+
 int time_subtract(time_delta* result, time_of_day* x, time_of_day* y)
 {
 	/* Perform the carry for the later subtraction by updating y. */
@@ -121,14 +133,7 @@ int time_subtract(time_delta* result, time_of_day* x, time_of_day* y)
 	return (x->tv_sec < y->tv_sec);
 }
 
-char* TCPrintFeedbackPacket(feedback_packet* packet)
+uint32_t time_to_milliseconds(struct timeval* time)
 {
-	char* buf;
-	asprintf(&buf, "{timestamp=%d, elapsed_time=%d, receive_rate=%d, loss_event_rate=%d}", packet->timestamp, packet->elapsed_time, packet->receive_rate, packet->loss_event_rate);
-	return buf;
-}
-
-void print_data_packet(data_packet *data)
-{
-	fprintf(stderr, "seq = %u\nts = %u\nrtt = %u\n", data->seq_number, data->timestamp, data->rtt);
+	return (time->tv_sec * 1000) + (time->tv_usec / 1000);
 }
