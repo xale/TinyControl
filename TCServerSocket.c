@@ -281,6 +281,7 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 		// Attempt to send the packet
 		char* buf = TCPrintDataPacket(&packet);
 		fprintf(stderr, "DEBUG: sending packet: %s\n", buf);
+		printf("%s", buf);
 		free(buf);
 		ssize_t bytesWritten = TCServerSocketSendPacket(serverSocket, &packet, bytesRead);
 		
@@ -298,6 +299,7 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 		// Update the send rate
 		uint32_t sendRate = TCServerSocketGetSendRate(serverSocket);
 		fprintf(stderr, "DEBUG: current send rate: %u bytes per second\n", sendRate);
+		printf(" rate=%u\n", sendRate);
 		
 		// Sleep until the next write event
 		if (writing && TCServerSocketIsReading(serverSocket))
