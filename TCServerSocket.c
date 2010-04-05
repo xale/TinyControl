@@ -244,14 +244,12 @@ void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 
 void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 {
-	fprintf(stderr, "DEBUG: starting write\n");
 	bool writing = true;
 	while (writing && TCServerSocketIsReading(serverSocket))
 	{
 		// Read a packet's worth of data from the file
 		data_packet packet;
 		ssize_t bytesRead = read(file, &(packet.payload), MAX_PAYLOAD_SIZE);
-		fprintf(stderr, "DEBUG: %zd bytes read from file\n", bytesRead);
 		
 		// If the read fails, abort sending immediately
 		if (bytesRead < 0)
@@ -285,7 +283,6 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 		fprintf(stderr, "DEBUG: sending packet: %s\n", buf);
 		free(buf);
 		ssize_t bytesWritten = TCServerSocketSendPacket(serverSocket, &packet, bytesRead);
-		fprintf(stderr, "DEBUG: %zd bytes written\n", bytesWritten);
 		
 		// If the send fails, abort sending immediately
 		if (bytesWritten < bytesRead)
@@ -305,9 +302,9 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 		// Sleep until the next write event
 		if (writing && TCServerSocketIsReading(serverSocket))
 		{
-			uint32_t msecToSleep = MAX_PAYLOAD_SIZE / (1000 * sendRate);
+			uint32_t msecToSleep = (1000 * MAX_PAYLOAD_SIZE) / sendRate;
 			fprintf(stderr, "DEBUG: sleeping for %d milliseconds\n", msecToSleep);
-			usleep(1000 * msecToSleep);
+			usleep(msecToSleep * 1000);
 		}
 	}
 }
@@ -380,6 +377,10 @@ void* TCServerSocketReadThread(void* s)
 						TCServerSocketSetIsReading(serverSocket, false);
 						break;
 					}
+					
+					char* buf = TCPrintFeedbackPacket(&packet);
+					fprintf(stderr, "DEBUG: feedback packet received: %s\n", buf);
+					free(buf);
 					
 					// Update sending rate
 					TCServerSocketFeedbackUpdate(serverSocket, &packet);
