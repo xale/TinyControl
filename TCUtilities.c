@@ -99,13 +99,15 @@ uint16_t TCAddressGetPort(socket_address* address)
 char* TCPrintFeedbackPacket(feedback_packet* packet)
 {
 	char* buf;
-	asprintf(&buf, "{timestamp=%d, elapsed_time=%d, receive_rate=%d, loss_event_rate=%d}", packet->timestamp, packet->elapsed_time, packet->receive_rate, packet->loss_event_rate);
+	asprintf(&buf, "{timestamp=%u, elapsed_time=%u, receive_rate=%u, loss_event_rate=%u}", packet->timestamp, packet->elapsed_time, packet->receive_rate, packet->loss_event_rate);
 	return buf;
 }
 
-void print_data_packet(data_packet *data)
+char* TCPrintDataPacket(data_packet *data)
 {
-	fprintf(stderr, "seq = %u\nts = %u\nrtt = %u\n", data->seq_number, data->timestamp, data->rtt);
+	char* buf;
+	asprintf(&buf, "{seq=%u, timestamp=%u, rtt=%u}", data->seq_number, data->timestamp, data->rtt);
+	return buf;
 }
 
 int time_subtract(time_delta* result, time_of_day* x, time_of_day* y)

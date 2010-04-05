@@ -160,7 +160,9 @@ int reader(int sock, struct queue* q)
 			flag = 0;
 		}
 		ntoh_data_packet(data_buffer, &data);
-		print_data_packet(&data);
+		char* buf = TCPrintDataPacket(&data);
+		fprintf(stderr, "%s\n", buf);
+		free(buf);
 
 		// FIXME:get time
 
