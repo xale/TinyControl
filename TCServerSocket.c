@@ -104,6 +104,7 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	
 	// Create threads to handle writing data to and reading congestion feedback information from the client
 	int rc;
+	TCServerSocketSetIsReading(serverSocket, true);
 	rc = pthread_create(&(serverSocket->readThread), NULL, TCServerSocketReadThread, (void*)serverSocket);
 	if (rc != 0)
 	{
