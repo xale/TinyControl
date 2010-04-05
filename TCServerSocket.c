@@ -197,7 +197,7 @@ socket_fd TCServerSocketConnect(const socket_address* connectAddress, socket_add
 			else
 			{
 				// Should never happen...
-				fprintf(stderr, "ERROR: client socket file descriptor not ready for reading after successful select() operation\n");
+				fprintf(stderr, "ERROR: client socket file descriptor not ready for reading after successful select() operation in TCServerSocketConnect()\n");
 				return -1;
 			}
 			break;
@@ -268,15 +268,16 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 			
 			// Fill the other fields of the packet
 			// Sequence number
-			packet.seq_number = serverSocket->sequenceNumber++;
+			packet.seq_number = htonl(serverSocket->sequenceNumber);
+			serverSocket->sequenceNumber++;
 			
 			// Timestamp
 			time_of_day timeNow;
 			gettimeofday(&timeNow, NULL);
-			packet.timestamp = time_to_milliseconds(&timeNow);
+			packet.timestamp = htonl(time_to_milliseconds(&timeNow));
 			
 			// Round-trip-time
-			packet.rtt = TCServerSocketGetRTT(serverSocket);
+			packet.rtt = htonl(TCServerSocketGetRTT(serverSocket));
 			
 			// Attempt to send the packet
 			ssize_t bytesWritten = TCServerSocketSendPacket(serverSocket, &packet, (DATA_PACKET_HEADER_LENGTH + bytesRead));
