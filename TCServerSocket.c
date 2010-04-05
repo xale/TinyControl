@@ -25,7 +25,13 @@ void* TCServerSocketReadThread(void* serverSocket);
 // Reads a feedback packet from the server socket, returning the number of bytes read, or -1 on error; called by read thread.
 ssize_t TCServerSocketReceiveFeedback(TCServerSocketRef serverSocket, feedback_packet* packet);
 
-// Sends a data_packet over the specified socket, returning the number of bytes written, or -1 on error; called by the write thread.
+// Updates the server socket's send rate when the feedback timer expires; called by read thread.
+void TCServerSocketNoFeedbackUpdate(TCServerSocketRef serverSocket);
+
+// Updates the server socket's send rate when a feedback packet is received; called by read thread.
+void TCServerSocketFeedbackUpdate(TCServerSocketRef serverSocket, feedback_packet* packet);
+
+// Sends a data_packet over the specified socket, returning the number of bytes written, or -1 on error.
 ssize_t TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* packet, size_t packetLength);
 
 // Retrieves the current send rate for the server socket
@@ -33,6 +39,10 @@ uint32_t TCServerSocketGetSendRate(TCServerSocketRef serverSocket);
 
 // Retrieves the current estimate for round-trip-time, in milliseconds
 uint32_t TCServerSocketGetRTT(TCServerSocketRef serverSocket);
+
+// Sets or returns whether or not the server socket's read thread is active
+void TCServerSocketSetIsReading(TCServerSocketRef serverSocket, bool reading);
+bool TCServerSocketIsReading(TCServerSocketRef serverSocket);
 
 TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, socket_address_length addressLength)
 {
@@ -77,9 +87,12 @@ TCServerSocketRef TCServerSocketCreate(const socket_address* connectAddress, soc
 	{
 		serverSocket->sendRate = UINT32_MAX;
 	}
-		
+	
 	// Sequence number zero 
 	serverSocket->sequenceNumber = 0;
+	
+	// Initial feedback timeout (2 seconds)
+	serverSocket->feedbackTimeout = 2000;
 	
 	// Create a mutex for the server socket object
 	if (pthread_mutex_init(&(serverSocket->mutex), NULL) != 0)
@@ -212,17 +225,11 @@ void TCServerSocketDestroy(TCServerSocketRef serverSocket)
 	if (serverSocket == NULL)
 		return;
 	
-	// Acquire mutex
-	pthread_mutex_lock(&(serverSocket->mutex));
-	
 	// Shut down the read thread
-	serverSocket->isReading = false;
+	TCServerSocketSetIsReading(serverSocket, false);
 	
 	// Wait for the thread to stop
 	pthread_join(serverSocket->readThread, NULL);
-	
-	// Release mutex
-	pthread_mutex_unlock(&(serverSocket->mutex));
 	
 	// Free the mutex
 	pthread_mutex_destroy(&(serverSocket->mutex));
@@ -238,7 +245,7 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 {
 	fprintf(stderr, "DEBUG: starting write\n");
 	bool writing = true;
-	while (writing)
+	while (writing && TCServerSocketIsReading(serverSocket))
 	{
 		// Update the send rate
 		uint32_t bytesToSend = TCServerSocketGetSendRate(serverSocket);
@@ -246,7 +253,7 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 		
 		// Write packets until we reach the send rate limit, or run out of data to send
 		data_packet packet;
-		for (uint32_t bytesSent = 0; writing && (bytesSent < bytesToSend);)
+		for (uint32_t bytesSent = 0; writing && TCServerSocketIsReading(serverSocket) && (bytesSent < bytesToSend);)
 		{
 			// Read a packet's worth of data from the file
 			ssize_t bytesRead = read(file, &(packet.payload), MAX_PAYLOAD_SIZE);
@@ -299,7 +306,7 @@ void TCServerSocketSend(TCServerSocketRef serverSocket, file_fd file)
 		}
 		
 		// Sleep for one second before the next write event
-		if (writing)
+		if (writing && TCServerSocketIsReading(serverSocket))
 		{
 			fprintf(stderr, "DEBUG: sleeping\n");
 			sleep(1);
@@ -315,30 +322,91 @@ ssize_t TCServerSocketSendPacket(TCServerSocketRef serverSocket, data_packet* pa
 void* TCServerSocketReadThread(void* s)
 {
 	TCServerSocketRef serverSocket = (TCServerSocketRef)s;
+	fd_set readFDs;
+	time_delta timeout;
 	
-	// Set the initial "no feedback" timeout (2 seconds from now)
-	gettimeofday(&(serverSocket->noFeedbackTimeout), NULL);
-	serverSocket->noFeedbackTimeout.tv_sec += 2;
-	
-	// FIXME: WRITEME
+	while (TCServerSocketIsReading(serverSocket))
+	{
+		// Add the socket to a file-descriptor-set for select()ing
+		FD_ZERO(&readFDs);
+		FD_SET(serverSocket->sock, &readFDs);
+		
+		// Set the "no feedback" timeout
+		gettimeofday(&timeout, NULL);
+		timeout.tv_sec += (serverSocket->feedbackTimeout / 1000);
+		timeout.tv_usec += (serverSocket->feedbackTimeout % 1000);
+		timeout.tv_sec += (timeout.tv_usec / 1000000);
+		timeout.tv_usec = (timeout.tv_usec % 1000000);
+		
+		// Wait for data on the socket
+		switch(select((serverSocket->sock + 1), &readFDs, NULL, NULL, &timeout))
+		{
+			case -1:
+				perror("ERROR: select failed in TCServerSocketReadThread()");
+				TCServerSocketSetIsReading(serverSocket, false);
+				break;
+				
+			case 0:
+				// Timeout: update sending rate
+				TCServerSocketNoFeedbackUpdate(serverSocket);
+				break;
+				
+			default:
+				if (FD_ISSET(serverSocket->sock, &readFDs) != 0)
+				{
+					// Data available for reading
+					feedback_packet packet;
+					ssize_t bytesRead = TCServerSocketReceiveFeedback(serverSocket, &packet);
+					if (bytesRead != FEEDBACK_PACKET_SIZE)
+					{
+						if (bytesRead < 0)
+							perror("ERROR: read failed in TCServerSocketReceiveFeedback()");
+						else
+							fprintf(stderr, "ERROR: partial packet received in TCServerSocketReceiveFeedback()");
+						TCServerSocketSetIsReading(serverSocket, false);
+						break;
+					}
+					
+					// Update sending rate
+					TCServerSocketFeedbackUpdate(serverSocket, &packet);
+				}
+				else
+				{
+					// Should never happen...
+					fprintf(stderr, "ERROR: socket file descriptor not ready for reading after successful select() operation in TCServerSocketReadThread()\n");
+					TCServerSocketSetIsReading(serverSocket, false);
+				}
+				break;
+		}
+	}
 	
 	pthread_exit(NULL);
 }
 
 ssize_t TCServerSocketReceiveFeedback(TCServerSocketRef serverSocket, feedback_packet* packet)
 {
-	uint8_t readBuffer[sizeof(feedback_packet)];
-	ssize_t bytesRead = recv(serverSocket->sock, readBuffer, sizeof(feedback_packet), 0);
+	uint8_t readBuffer[FEEDBACK_PACKET_SIZE];
+	ssize_t bytesRead = recv(serverSocket->sock, readBuffer, FEEDBACK_PACKET_SIZE, 0);
 	
-	if (bytesRead == sizeof(feedback_packet))
+	if (bytesRead == FEEDBACK_PACKET_SIZE)
 	{
-		packet->timestamp = (uint32_t)(*readBuffer);
-		packet->elapsed_time = (uint32_t)(*(readBuffer + TIMESTAMP_FIELD_WIDTH));
-		packet->receive_rate = (uint32_t)(*(readBuffer + TIMESTAMP_FIELD_WIDTH + ELAPSED_T_FIELD_WIDTH));
-		packet->loss_event_rate = (uint32_t)(*(readBuffer + TIMESTAMP_FIELD_WIDTH + ELAPSED_T_FIELD_WIDTH + RECV_RATE_FIELD_WIDTH));
+		packet->timestamp = ntohl((uint32_t)(*readBuffer));
+		packet->elapsed_time = ntohl((uint32_t)(*(readBuffer + TIMESTAMP_FIELD_WIDTH)));
+		packet->receive_rate = ntohl((uint32_t)(*(readBuffer + TIMESTAMP_FIELD_WIDTH + ELAPSED_T_FIELD_WIDTH)));
+		packet->loss_event_rate = ntohl((uint32_t)(*(readBuffer + TIMESTAMP_FIELD_WIDTH + ELAPSED_T_FIELD_WIDTH + RECV_RATE_FIELD_WIDTH)));
 	}
 	
 	return bytesRead;
+}
+
+void TCServerSocketNoFeedbackUpdate(TCServerSocketRef serverSocket)
+{
+	// FIXME: WRITEME
+}
+
+void TCServerSocketFeedbackUpdate(TCServerSocketRef serverSocket, feedback_packet* packet)
+{
+	// FIXME: WRITEME
 }
 
 uint32_t TCServerSocketGetSendRate(TCServerSocketRef serverSocket)
@@ -357,6 +425,22 @@ uint32_t TCServerSocketGetRTT(TCServerSocketRef serverSocket)
 	RTT = serverSocket->RTT;
 	pthread_mutex_unlock(&(serverSocket->mutex));
 	return RTT;
+}
+
+void TCServerSocketSetIsReading(TCServerSocketRef serverSocket, bool reading)
+{
+	pthread_mutex_lock(&(serverSocket->mutex));
+	serverSocket->isReading = reading;
+	pthread_mutex_unlock(&(serverSocket->mutex));
+}
+
+bool TCServerSocketIsReading(TCServerSocketRef serverSocket)
+{
+	bool reading;
+	pthread_mutex_lock(&(serverSocket->mutex));
+	reading = serverSocket->isReading;
+	pthread_mutex_unlock(&(serverSocket->mutex));
+	return reading;
 }
 
 socket_address* TCServerSocketGetRemoteAddress(TCServerSocketRef serverSocket)

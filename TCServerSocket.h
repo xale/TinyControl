@@ -24,10 +24,10 @@ typedef struct TCServerSocket
 	pthread_t readThread;
 	bool isReading;
 	
-	uint32_t sendRate;
-	uint32_t RTT;
+	uint32_t sendRate;			// bytes per second
+	uint32_t RTT;				// milliseconds
 	uint32_t sequenceNumber;
-	time_delta noFeedbackTimeout;
+	uint32_t feedbackTimeout;	// milliseconds
 } TCServerSocket;
 
 typedef TCServerSocket* TCServerSocketRef;
